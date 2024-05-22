@@ -144,8 +144,47 @@ N_CLASSES = 10
 #############  Functions  ####################
 ##############################################
 
+class DiceLoss(nn.Module):
+    def __init__(self, n_classes):
+        super(DiceLoss, self).__init__()
+        self.n_classes = n_classes
+
+    def _one_hot_encoder(self, input_tensor):
+        tensor_list = []
+        for i in range(self.n_classes):
+            temp_prob = input_tensor == i  # * torch.ones_like(input_tensor)
+            tensor_list.append(temp_prob.unsqueeze(1))
+        output_tensor = torch.cat(tensor_list, dim=1)
+        return output_tensor.float()
+
+    def _dice_loss(self, score, target):
+        target = target.float()
+        smooth = 1e-5
+        intersect = torch.sum(score * target)
+        y_sum = torch.sum(target * target)
+        z_sum = torch.sum(score * score)
+        loss = (2 * intersect + smooth) / (z_sum + y_sum + smooth)
+        loss = 1 - loss
+        return loss
+
+    def forward(self, inputs, target, weight=None, softmax=True):
+        if softmax:
+            inputs = torch.softmax(inputs, dim=1)
+        target = self._one_hot_encoder(target)
+        if weight is None:
+            weight = [1] * self.n_classes
+        assert inputs.size() == target.size(), 'predict {} & target {} shape do not match'.format(inputs.size(), target.size())
+        class_wise_dice = []
+        loss = 0.0
+        for i in range(0, self.n_classes):
+            dice = self._dice_loss(inputs[:, i], target[:, i])
+            class_wise_dice.append(1.0 - dice.item())
+            loss += dice * weight[i]
+        return loss / self.n_classes
+
 # model training with two possible loss functions
-def model_training_multiloss(model, train_loader, val_loader, num_epochs, ce_loss_fn, dice_loss_fn, optimizer, scaler, scheduler, activate_scheduler=True):
+def model_training_multiloss(model, train_loader, val_loader, num_epochs, ce_loss_fn, dice_loss_fn, optimizer, scaler, scheduler, 
+                            avg_train_loss_list, avg_val_loss_list, activate_scheduler=True,):
     print('Training beginning with following parameters:')
     print(f'No. Epochs: {num_epochs}')
     
@@ -239,10 +278,8 @@ def model_training_multiloss(model, train_loader, val_loader, num_epochs, ce_los
                 #print(f'Validation Batch IoU: {val_batch_iou}')
             
         '''
-        print(f'Average Validation Batch Loss: {val_batch_loss/VAL_BATCH_SIZE:.4f}')
-        #print(f'Average Validation Batch IoU: {val_batch_iou/VAL_BATCH_SIZE:.4f}')            
+        print(f'Average Validation Batch Loss: {val_batch_loss/VAL_BATCH_SIZE:.4f}')        
         avg_val_loss_list.append(val_batch_loss/VAL_BATCH_SIZE)
-        #avg_val_iou_list.append(val_batch_iou/VAL_BATCH_SIZE)
         
         #######################################################
         ############### adjust learning rate ##################
@@ -314,10 +351,12 @@ def model_training_multiloss(model, train_loader, val_loader, num_epochs, ce_los
                 'scaler_state_dict': scaler.state_dict()
             }, f'model_e{epoch}.pt')
             
-    return model, loss
+    return model, loss, avg_train_loss_list, avg_val_loss_list
+
 
 # model training with one loss function
-def model_training(model, train_loader, val_loader, num_epochs, loss_fn, optimizer, scaler, scheduler, activate_scheduler=False):
+def model_training(model, train_loader, val_loader, num_epochs, loss_fn, optimizer, scaler, scheduler, avg_train_loss_list, avg_val_loss_list,
+                   activate_scheduler=False):
     print('Training beginning with following parameters:')
     print(f'No. Epochs: {num_epochs}')
     
@@ -481,7 +520,7 @@ def model_training(model, train_loader, val_loader, num_epochs, loss_fn, optimiz
                 'scaler_state_dict': scaler.state_dict()
             }, f'model_e{epoch}_{CURRENT_DATE}.pt')
             
-    return model, loss
+    return model, loss, avg_train_loss_list, avg_val_loss_list
 
 
 def rgb_visualize_prediction_vs_ground_truth_single_batches_before_argmax(model, loader, height, width):
