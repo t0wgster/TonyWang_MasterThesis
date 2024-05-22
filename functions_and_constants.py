@@ -568,7 +568,7 @@ def rgb_visualize_prediction_vs_ground_truth_single_batches_before_argmax(model,
     #for checking if masks fit to respective image, all defects are displayed in a unique color
     
     print('Legend:')
-    for i, color in enumerate(colors_long):
+    for i, color in enumerate(COLORS_LONG):
         print(f'{TXT_COLORS_LONG[i]} -> {CLASSES_LONG[i]}')
         
     print('\033[0m- - - - - - -')
