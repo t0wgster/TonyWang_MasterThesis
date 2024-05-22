@@ -38,7 +38,7 @@ CLASSES_LONG = ['background', 'chicken_front', 'chicken_back', 'Blood', 'Bones',
 TXT_COLORS_LONG=['\033[0mblack', '\033[94mwhite', '\033[32mgreen','\033[91mred', 
                  '\033[96mcyan', '\033[94mblue', '\\033[31mdarkred',
                  '\033[95mpink' ,'\033[34mnavy' , '\033[38;2;255;165;0morange']
-TXT_COLORS_LONG_COLOR_ONLY=['\033[0m', '\033[94m', '\033[91m', '\033[96m', '\033[94m', '\033[31m', '\033[95m' ,'\033[34m' , '\033[38;2;255;165;0m']
+TXT_COLORS_LONG_COLOR_ONLY=['\033[0m', '\033[94m', '\033[32m', '\033[91m', '\033[96m', '\033[94m', '\033[31m', '\033[95m' ,'\033[34m' , '\033[38;2;255;165;0m']
 
 cmap_long = ListedColormap(COLORS_LONG)
 BOUNDARIES_LONG = [-0.5, 0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5]
