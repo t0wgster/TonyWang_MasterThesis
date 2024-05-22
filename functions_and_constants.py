@@ -28,6 +28,50 @@ from torchsummary import summary
 ############ Custom Dataset  #################
 ##############################################
 
+#replace mask values with smaller numbers
+def replace_np_values(np_array, defects_only):
+    value_to_replace = 4
+    new_value = 3
+    np_array[np_array == value_to_replace] = new_value
+    
+    value_to_replace = 8
+    new_value = 4
+    np_array[np_array == value_to_replace] = new_value   
+
+    value_to_replace = 16
+    new_value = 5
+    np_array[np_array == value_to_replace] = new_value
+
+    value_to_replace = 32
+    new_value = 6
+    np_array[np_array == value_to_replace] = new_value  
+
+    value_to_replace = 64
+    new_value = 7
+    np_array[np_array == value_to_replace] = new_value       
+
+    value_to_replace = 128
+    new_value = 8
+    np_array[np_array == value_to_replace] = new_value      
+    
+    if defects_only:
+        value_to_replace = 1
+        new_value = 0
+        np_array[np_array == value_to_replace] = new_value
+
+# finds out if image contains any defects
+def img_contains_defects(mask):
+    if (torch.any(mask == 2) or torch.any(mask == 3) or torch.any(mask == 4) or torch.any(mask == 5) or torch.any(mask == 6) or torch.any(mask == 8)):
+        return True
+    else:
+        return False
+    
+def img_contains_nothing(mask):
+    if torch.all(mask == 0):
+        return False
+    else:
+        return True
+
 class _WHDataset_10_classes(Dataset):
     def __init__(self, img_dir, mask_dir, transform_resize_img_only=None, transform=None):
         self.img_dir=img_dir
