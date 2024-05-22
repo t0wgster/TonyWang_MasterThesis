@@ -240,7 +240,7 @@ class preprocessing_block(nn.Module):
     def forward(self, x):
         return self.preprocess(x)
 
-  class hsi_unet_model_gelu(nn.Module):
+class hsi_unet_model_gelu(nn.Module):
     def __init__(self, in_channels, out_channels=9, features=[64, 128, 256, 512]):
         super(hsi_unet_model_gelu,self).__init__()
         self.preprocess = preprocessing_block(in_channels)
