@@ -135,7 +135,7 @@ TXT_COLORS_LONG=['\033[0mblack', '\033[94mwhite', '\033[32mgreen','\033[91mred',
 TXT_COLORS_LONG_COLOR_ONLY=['\033[0m', '\033[94m', '\033[32m', '\033[91m', '\033[96m', '\033[94m', '\033[31m', '\033[95m' ,'\033[34m' , '\033[38;2;255;165;0m']
 
 cmap_long = ListedColormap(COLORS_LONG)
-BOUNDARIES_LONG = [-0.5, 0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5]
+BOUNDARIES_LONG = [-0.5, 0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5]
 norm_long = BoundaryNorm(BOUNDARIES_LONG, len(COLORS_LONG))
 
 N_CLASSES = 10
@@ -492,7 +492,7 @@ def rgb_visualize_prediction_vs_ground_truth_single_batches_before_argmax(model,
     
     print('Legend:')
     for i, color in enumerate(colors_long):
-        print(f'{txt_colors_long[i]} -> {classes_long[i]}')
+        print(f'{TXT_COLORS_LONG[i]} -> {CLASSES_LONG[i]}')
         
     print('\033[0m- - - - - - -')
     
@@ -526,7 +526,7 @@ def rgb_visualize_prediction_vs_ground_truth_single_batches_before_argmax(model,
         overlay = np.zeros((height, width, 3))  
         for i, prob_mask in enumerate(prob_masks):
 
-            color = np.array(plt.cm.colors.to_rgba(colors_long[i])[:3])  # Get color for class
+            color = np.array(plt.cm.colors.to_rgba(COLORS_LONG[i])[:3])  # Get color for class
             overlay += np.dstack((color[0] * prob_mask.detach().numpy(), 
                                   color[1] * prob_mask.detach().numpy(), 
                                   color[2] * prob_mask.detach().numpy()))  # Add color with transparency
