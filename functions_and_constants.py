@@ -25,6 +25,56 @@ from torch.optim.lr_scheduler import StepLR, MultiStepLR, ReduceLROnPlateau, Exp
 from torchsummary import summary
 
 ##############################################
+############ Custom Dataset  #################
+##############################################
+
+class _WHDataset_10_classes(Dataset):
+    def __init__(self, img_dir, mask_dir, transform_resize_img_only=None, transform=None):
+        self.img_dir=img_dir
+        self.mask_dir=mask_dir
+        self.transform=transform
+        self.images=os.listdir(img_dir)
+        self.transform_resize_img_only=transform_resize_img_only
+        
+    def __len__(self):
+        return len(self.images)
+    
+    def get_image_mask_name(self, idx):
+        mask_name = os.path.join(self.mask_dir, self.images[idx].replace('.png', '.npy'))
+        return os.path.basename(mask_name)
+    
+    def __getitem__(self, idx):
+        img_name=os.path.join(self.img_dir, self.images[idx])
+        mask_name=os.path.join(self.mask_dir, self.images[idx].replace('.png', '.npy'))
+        
+        #mask_name=os.path.join(self.mask_dir, self.images[idx].replace('.png', '.npy'))  #masks are loaded up as npy files
+        
+        #read in image as PIL and mask as numpy
+        image=np.array(Image.open(img_name).convert('RGB'))
+
+        mask=np.load(mask_name)
+
+        image=image/255
+
+        if self.transform_resize_img_only:
+            transformed=self.transform_resize_img_only(image=image)
+            image = transformed["image"]
+        
+        #loops around to find transformed images with defects, after 7 loops it just takes whatever it finds
+        if self.transform:
+            for i in range(7):
+                transformed = self.transform(image=image, mask=mask)
+                image_trans = transformed["image"]
+                mask_trans = transformed["mask"]
+                #mask_trans=mask_trans[:,:,0] --> masks are not 3d
+                if img_contains_defects(mask_trans):
+                    break;
+                if img_contains_nothing(mask_trans):
+                    i = i - 1
+
+        return image_trans, mask_trans
+
+##############################################
 #############  Constants  ####################
 ##############################################
 
