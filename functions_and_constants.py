@@ -443,6 +443,8 @@ def model_training(model, train_loader, val_loader, num_epochs, loss_fn, optimiz
             '''
     
         #calculate average loss
+        print(type(train_batch_loss))
+        print(type(TRAIN_BATCH_SIZE))
         print(f'Average Train Batch Loss: {train_batch_loss/TRAIN_BATCH_SIZE:.4f}')
         #print(f'Average Train Batch IoU: {train_batch_iou/TRAIN_BATCH_SIZE}')
         avg_train_loss_list.append(train_batch_loss/TRAIN_BATCH_SIZE)
