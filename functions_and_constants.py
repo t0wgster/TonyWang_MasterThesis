@@ -41,6 +41,8 @@ cmap_long = ListedColormap(COLORS_LONG)
 BOUNDARIES_LONG = [-0.5, 0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5]
 norm_long = BoundaryNorm(BOUNDARIES_LONG, len(COLORS_LONG))
 
+N_CLASSES = 10
+
 ##############################################
 #############  Functions  ####################
 ##############################################
