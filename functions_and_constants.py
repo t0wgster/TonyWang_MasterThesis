@@ -214,7 +214,8 @@ class DiceLoss(nn.Module):
 
 # model training with two possible loss functions
 def model_training_multiloss(model, train_loader, val_loader, num_epochs, ce_loss_fn, dice_loss_fn, optimizer, scaler, scheduler, 
-                            avg_train_loss_list, avg_val_loss_list, activate_scheduler=True,):
+                            avg_train_loss_list, avg_val_loss_list, TRAIN_BATCH_SIZE, VAL_BATCH_SIZE,
+                             activate_scheduler=True,):
     print('Training beginning with following parameters:')
     print(f'No. Epochs: {num_epochs}')
     
@@ -386,6 +387,7 @@ def model_training_multiloss(model, train_loader, val_loader, num_epochs, ce_los
 
 # model training with one loss function
 def model_training(model, train_loader, val_loader, num_epochs, loss_fn, optimizer, scaler, scheduler, avg_train_loss_list, avg_val_loss_list,
+                   TRAIN_BATCH_SIZE, VAL_BATCH_SIZE,
                    activate_scheduler=False):
     print('Training beginning with following parameters:')
     print(f'No. Epochs: {num_epochs}')
@@ -476,9 +478,9 @@ def model_training(model, train_loader, val_loader, num_epochs, loss_fn, optimiz
             
         '''
         print(f'Average Validation Batch Loss: {val_batch_loss/VAL_BATCH_SIZE:.4f}')
-        #print(f'Average Validation Batch IoU: {val_batch_iou/VAL_BATCH_SIZE:.4f}')            
+           
         avg_val_loss_list.append(val_batch_loss/VAL_BATCH_SIZE)
-        #avg_val_iou_list.append(val_batch_iou/VAL_BATCH_SIZE)
+
         
         #######################################################
         ############### adjust learning rate ##################
