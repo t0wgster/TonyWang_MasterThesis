@@ -462,8 +462,6 @@ def rgb_visualize_prediction_vs_ground_truth_single_batches_before_argmax(model,
     return pred_mask
 
 def rgb_visualize_prediction_vs_ground_truth_single_images_overlay(img, truth_mask, pred_mask, is_img_normalized=False):
-    
-    model.eval()
 
     if is_img_normalized:
 
