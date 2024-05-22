@@ -24,13 +24,26 @@ from tqdm import tqdm
 from torch.optim.lr_scheduler import StepLR, MultiStepLR, ReduceLROnPlateau, ExponentialLR, CosineAnnealingLR
 from torchsummary import summary
 
+##############################################
+#############  Constants  ####################
+##############################################
+
 #color values for complete classes
-num_unique_values_long = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-colors_long = ['black',          'white', 'green',  'red',  'cyan',          'blue',      'darkred',     'pink',     'navy', 'orange', ]
-classes_long = ['background', 'chicken_front', 'chicken_back', 'Blood', 'Bones', 'SurfaceDefect', 'Discoloring', 'Scalding', 'Deformed', 'Fat/Skin']
-txt_colors_long=['\033[0mblack', '\033[94mwhite', '\033[32mgreen','\033[91mred', 
+NUM_UNIQUE_VALUES_LONG = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+COLORS_LONG = ['black',          'white', 'green',  'red',  'cyan',          'blue',      'darkred',     'pink',     'navy', 'orange', ]
+CLASSES_LONG = ['background', 'chicken_front', 'chicken_back', 'Blood', 'Bones', 'SurfaceDefect', 'Discoloring', 'Scalding', 'Deformed', 'Fat/Skin']
+TXT_COLORS_LONG=['\033[0mblack', '\033[94mwhite', '\033[32mgreen','\033[91mred', 
                  '\033[96mcyan', '\033[94mblue', '\\033[31mdarkred',
                  '\033[95mpink' ,'\033[34mnavy' , '\033[38;2;255;165;0morange']
+TXT_COLORS_LONG_COLOR_ONLY=['\033[0m', '\033[94m', '\033[91m', '\033[96m', '\033[94m', '\033[31m', '\033[95m' ,'\033[34m' , '\033[38;2;255;165;0m']
+
+cmap_long = ListedColormap(colors_long)
+boundaries_long = [-0.5, 0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5]
+norm_long = BoundaryNorm(boundaries_long, len(colors_long))
+
+##############################################
+#############  Functions  ####################
+##############################################
 
 # model training with two possible loss functions
 def model_training_multiloss(model, train_loader, val_loader, num_epochs, ce_loss_fn, dice_loss_fn, optimizer, scaler, scheduler, activate_scheduler=True):
@@ -514,3 +527,136 @@ def rgb_visualize_prediction_vs_ground_truth_single_images_overlay_postprocessed
     axs[1, 1].axis('off')
 
     plt.show()
+
+def iou_all_classes(truth_mask, pred_mask, N_CLASS=N_CLASSES, print_iou=False, SINGLE_PREDICTION=False):
+    
+    iou_list=[]
+    
+    one_hot_pred_masks=F.one_hot(pred_mask.to(torch.int64), num_classes=N_CLASS).to(DEVICE)
+    one_hot_truth_masks=F.one_hot(truth_mask.to(torch.int64), num_classes=N_CLASS).to(DEVICE)
+    
+    for i in range(N_CLASS):
+        
+        # condition for ground truth mask being all 0s    
+        if one_hot_truth_masks[:,:,i].eq(0).all():
+            iou_list.append(-1.0)
+            if print_iou:
+                print(f'Prediction Mask {i} is empty')
+            
+        
+        # condition for prediction mask being all 0s
+        #if one_hot_pred_masks[:,:,i].eq(0).all():
+        #    print(f'Prediction Mask {i} is empty')
+        #    iou_list.append(-1)
+        
+        else:
+            if SINGLE_PREDICTION:
+                union=one_hot_pred_masks.squeeze(0)[:,:,i]|one_hot_truth_masks[:,:,i]
+                intersection=one_hot_pred_masks.squeeze(0)[:,:,i]&one_hot_truth_masks[:,:,i]
+            else:
+                union=one_hot_pred_masks[:,:,i]|one_hot_truth_masks[:,:,i]
+                intersection=one_hot_pred_masks[:,:,i]&one_hot_truth_masks[:,:,i]
+            
+            iou=intersection.sum().item()/(union.sum().item()+1e-8)
+            
+            if print_iou:
+                print(f'Prediction Mask {i} has IOU of {iou}')
+            
+            iou_list.append(iou)
+            
+    return iou_list
+
+def calculate_img_iou(iou_array, N_CLASS=N_CLASSES, IGNORE_N_CLASSES=2):
+    
+    iou=0
+    n_classes=IGNORE_N_CLASSES
+    
+    for i in range(N_CLASS):
+        #skip background and chicken filet iou
+        if i >= IGNORE_N_CLASSES:
+            #negative numbers mean that masks in ground truth were empty
+            if iou_array[i] >= 0:
+
+                iou=iou+iou_array[i]
+                
+            else:
+                n_classes=n_classes+1
+
+    class_iou = iou/(N_CLASS-n_classes+1e-8)
+    
+    return class_iou
+
+#calcuates the dice score of a SINGLE prediction, not a single batch
+def dice_all_classes(truth_mask, pred_mask, N_CLASS=N_CLASSES, print_dice=False, SINGLE_PREDICTION=False):
+    
+    dice_list=[]
+    
+    one_hot_pred_masks=F.one_hot(pred_mask.to(torch.int64), num_classes=N_CLASS).to(DEVICE)
+    one_hot_truth_masks=F.one_hot(truth_mask.to(torch.int64), num_classes=N_CLASS).to(DEVICE)
+    
+    for i in range(N_CLASS):
+        
+        # condition for ground truth mask being all 0s    
+        if one_hot_truth_masks[:,:,i].eq(0).all():
+            if print_dice:
+                 print(f'Prediction Mask {i} is empty')
+            dice_list.append(-1)
+            
+        else:
+            if SINGLE_PREDICTION:
+                intersection=one_hot_pred_masks.squeeze(0)[:,:,i]&one_hot_truth_masks[:,:,i]
+                dice_numinator=2*intersection.sum().item()
+                dice_denominator=one_hot_pred_masks.squeeze(0)[:,:,i].sum().item()+one_hot_truth_masks[:,:,i].sum().item()
+            else:
+                intersection=one_hot_pred_masks[:,:,i]&one_hot_truth_masks[:,:,i]
+                dice_numinator=2*intersection.sum().item()
+                dice_denominator=one_hot_pred_masks[:,:,i].sum().item()+one_hot_truth_masks[:,:,i].sum().item()
+            
+            dice=dice_numinator/(dice_denominator+1e-8)
+            
+            if print_dice:
+                print(f'Prediction Mask {i} has Dice Score of {dice}')
+                
+            dice_list.append(dice)
+            
+    return dice_list
+
+#basically same function as calculate_class_iou
+def calculate_img_dice(iou_array, N_CLASS=N_CLASSES, IGNORE_N_CLASSES=2):
+    
+    iou=0
+    n_classes=IGNORE_N_CLASSES
+    
+    for i in range(N_CLASS):
+        #skip background and chicken filet iou
+        if i >= IGNORE_N_CLASSES:
+            
+            #negative numbers mean that masks in ground truth were empty
+            if iou_array[i] >= 0:
+
+                iou=iou+iou_array[i]
+                
+            else:
+                n_classes=n_classes+1
+
+    class_iou = iou/(N_CLASS-n_classes+1e-8)
+    
+    return class_iou
+
+def is_ground_truth_empy(truth_mask, N_CLASS=N_CLASSES):
+    
+    gt_array=[]
+
+    one_hot_truth_masks=F.one_hot(truth_mask.to(torch.int64), num_classes=N_CLASS).to(DEVICE)
+
+    for i in range(N_CLASS):
+        if one_hot_truth_masks[:,:,i].eq(0).all():
+            gt_array.append(True)
+        else:
+            gt_array.append(False)
+
+    return gt_array
+
+# confusion matrix
+def plot_confusion_matrix(gt_flat, pred_flat, label_array):
+    conf=ConfusionMatrixDisplay.from_predictions(gt_flat, pred_flat, display_labels=label_array)
