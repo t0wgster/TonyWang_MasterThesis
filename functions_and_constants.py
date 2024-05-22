@@ -418,7 +418,7 @@ def rgb_visualize_prediction_vs_ground_truth_single_batches_before_argmax(model,
         prob_masks=[]
         
         #loop over all class masks in probability mask
-        for c in range(len(num_unique_values_long)):
+        for c in range(len(NUM_UNIQUE_VALUES_LONG)):
             #normalize probability of predicted masks
             #prob_pred_mask[j,c,:,:]=prob_pred_mask[j,c,:,:]/torch.max(prob_pred_mask[j,c,:,:])
             prob_masks.append(prob_pred_mask[j,c,:,:])
@@ -442,9 +442,6 @@ def rgb_visualize_prediction_vs_ground_truth_single_batches_before_argmax(model,
         single_img = np.asarray(img[j,:,:,:].to('cpu').permute(1,2,0))
         single_mask = np.asarray(mask[j,:,:].to('cpu'))
         single_pred = np.asarray(pred_mask[j,:,:].to('cpu'))
-    
-        #for k in range(3):  # Undo normalization for each channel
-        #    denorm_img[:, :, k] = single_img[:, :, k] * img_std[k] + img_mean[k]
 
         axs[0].set_title('Image')
         axs[1].set_title('Ground Truth')
@@ -468,9 +465,6 @@ def rgb_visualize_prediction_vs_ground_truth_single_images_overlay(img, truth_ma
         fig , axs =  plt.subplots(1, 3, figsize=(18, 12))
 
         denorm_img = img.numpy().transpose((1, 2, 0)).copy()
-
-        for j in range(3):  # Undo normalization for each channel
-            denorm_img[:, :, j] = denorm_img[:, :, j] * img_std[j] + img_mean[j]
 
         axs[0].set_title('Normalized Image')
         axs[1].set_title('Denormalized Image')
