@@ -24,9 +24,9 @@ from tqdm import tqdm
 from torch.optim.lr_scheduler import StepLR, MultiStepLR, ReduceLROnPlateau, ExponentialLR, CosineAnnealingLR
 from torchsummary import summary
 
-##############################################
-############ Custom Dataset  #################
-##############################################
+###############################################################
+############ Custom Dataset and Preprocessing  ################
+###############################################################
 
 #replace mask values with smaller numbers
 def replace_np_values(np_array, defects_only):
@@ -118,6 +118,36 @@ class _WHDataset_10_classes(Dataset):
 
         return image_trans, mask_trans
 
+transformation = A.Compose([
+    A.Resize(640,640),
+    A.RandomCrop(width=320, height=320),
+    A.RandomRotate90(p=0.5),
+    A.Rotate(limit=20, p=0.5, border_mode=cv2.BORDER_CONSTANT),
+    A.HorizontalFlip(p=0.5),
+    A.VerticalFlip(p=0.5),
+    A.RGBShift(r_shift_limit=(0,0.1), g_shift_limit=0, b_shift_limit=0, p=0.5),
+    #A.augmentations.transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5)),
+    #A.augmentations.transforms.Normalize(mean=img_mean, std=img_std),
+    ToTensorV2()
+])
+
+transformation_resize_img=A.Compose([
+    A.Resize(960,960),
+    #ToTensorV2()
+])
+
+transformation_inference=A.Compose([
+    A.Resize(320, 320),
+    ToTensorV2()
+])
+
+test_transformation = A.Compose([
+    A.Resize(320,320),
+    #A.augmentations.transforms.Normalize(mean=img_mean, std=img_std),
+    #A.augmentations.transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5)),
+    ToTensorV2()
+])
+
 ##############################################
 #############  Constants  ####################
 ##############################################
@@ -140,9 +170,9 @@ norm_long = BoundaryNorm(BOUNDARIES_LONG, len(COLORS_LONG))
 
 N_CLASSES = 10
 
-##############################################
-#############  Functions  ####################
-##############################################
+#######################################################
+#############  Training Functions  ####################
+#######################################################
 
 class DiceLoss(nn.Module):
     def __init__(self, n_classes):
