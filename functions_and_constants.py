@@ -386,7 +386,8 @@ def model_training_multiloss(model, train_loader, val_loader, num_epochs, ce_los
 
 
 # model training with one loss function
-def model_training(model, train_loader, val_loader, num_epochs, loss_fn, optimizer, scaler, scheduler, avg_train_loss_list, avg_val_loss_list,
+def model_training(model, train_loader, val_loader, num_epochs, loss_fn, optimizer, scaler, scheduler, 
+                   avg_train_loss_list, avg_val_loss_list,
                    TRAIN_BATCH_SIZE, VAL_BATCH_SIZE,
                    activate_scheduler=False):
     print('Training beginning with following parameters:')
@@ -550,7 +551,7 @@ def model_training(model, train_loader, val_loader, num_epochs, loss_fn, optimiz
                 'optimizer_state_dict': optimizer.state_dict(),
                 'loss': loss,
                 'scaler_state_dict': scaler.state_dict()
-            }, f'model_e{epoch}_{CURRENT_DATE}.pt')
+            }, f'model_e{epoch}_{datetime.today().strftime('%Y-%m-%d')}.pt')
             
     return model, loss, avg_train_loss_list, avg_val_loss_list
 
