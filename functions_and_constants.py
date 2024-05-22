@@ -37,9 +37,9 @@ TXT_COLORS_LONG=['\033[0mblack', '\033[94mwhite', '\033[32mgreen','\033[91mred',
                  '\033[95mpink' ,'\033[34mnavy' , '\033[38;2;255;165;0morange']
 TXT_COLORS_LONG_COLOR_ONLY=['\033[0m', '\033[94m', '\033[91m', '\033[96m', '\033[94m', '\033[31m', '\033[95m' ,'\033[34m' , '\033[38;2;255;165;0m']
 
-cmap_long = ListedColormap(colors_long)
-boundaries_long = [-0.5, 0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5]
-norm_long = BoundaryNorm(boundaries_long, len(colors_long))
+cmap_long = ListedColormap(COLORS_LONG)
+BOUNDARIES_LONG = [-0.5, 0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5]
+norm_long = BoundaryNorm(BOUNDARIES_LONG, len(COLORS_LONG))
 
 ##############################################
 #############  Functions  ####################
