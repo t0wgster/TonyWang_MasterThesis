@@ -212,9 +212,6 @@ class UNetWithResnet50Encoder(nn.Module):
         else:
             return x
 
-model = UNetWithResnet50Encoder()
-
-
 ############################################
 ############### HSI UNET ###################
 ############################################
