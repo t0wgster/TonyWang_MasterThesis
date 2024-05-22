@@ -370,3 +370,147 @@ def model_training(model, train_loader, val_loader, num_epochs, loss_fn, optimiz
             }, f'model_e{epoch}_{CURRENT_DATE}.pt')
             
     return model, loss
+
+
+def rgb_visualize_prediction_vs_ground_truth_single_batches_before_argmax(model, loader, height, width):
+    
+    model.eval()
+    
+    #for checking if masks fit to respective image, all defects are displayed in a unique color
+    
+    print('Legend:')
+    for i, color in enumerate(colors_long):
+        print(f'{txt_colors_long[i]} -> {classes_long[i]}')
+        
+    print('\033[0m- - - - - - -')
+    
+    batch=next(iter(loader))
+
+    img, mask=batch
+    
+    img = img.to(DEVICE)
+    mask = mask.to(DEVICE)
+    
+    softmax = nn.Softmax(dim=1)
+    prob_pred_mask = softmax(model(img.float())).to('cpu')
+    pred_mask = torch.argmax(softmax(model(img.float())),axis=1).to('cpu')
+    #prob_pred_mask = softmax(model(img)).detach.to('cpu').numpy()
+    
+    #print(np.max(prob_pred_mask[0,c,:,:]))
+
+    #loop over all images inside the batch
+    for j in range(img.shape[0]):
+        
+        #list for storing the masks
+        prob_masks=[]
+        
+        #loop over all class masks in probability mask
+        for c in range(len(num_unique_values_long)):
+            #normalize probability of predicted masks
+            #prob_pred_mask[j,c,:,:]=prob_pred_mask[j,c,:,:]/torch.max(prob_pred_mask[j,c,:,:])
+            prob_masks.append(prob_pred_mask[j,c,:,:])
+        
+        # Initialize an empty overlay
+        overlay = np.zeros((height, width, 3))  
+        for i, prob_mask in enumerate(prob_masks):
+
+            color = np.array(plt.cm.colors.to_rgba(colors_long[i])[:3])  # Get color for class
+            overlay += np.dstack((color[0] * prob_mask.detach().numpy(), 
+                                  color[1] * prob_mask.detach().numpy(), 
+                                  color[2] * prob_mask.detach().numpy()))  # Add color with transparency
+
+        # Clip overlay to ensure values are between 0 and 1
+        overlay = np.clip(overlay, 0, 1)
+            
+        fig , axs =  plt.subplots(1, 4, figsize=(24, 24))
+    
+        print(f'Image No.{j}')
+        #convert into arrays for visualisation
+        single_img = np.asarray(img[j,:,:,:].to('cpu').permute(1,2,0))
+        single_mask = np.asarray(mask[j,:,:].to('cpu'))
+        single_pred = np.asarray(pred_mask[j,:,:].to('cpu'))
+    
+        #for k in range(3):  # Undo normalization for each channel
+        #    denorm_img[:, :, k] = single_img[:, :, k] * img_std[k] + img_mean[k]
+
+        axs[0].set_title('Image')
+        axs[1].set_title('Ground Truth')
+        axs[2].set_title('Prediction')
+        axs[3].set_title('Prediction Probabilities')
+        axs[0].imshow(single_img)
+        axs[1].imshow(single_mask, cmap=cmap_long, norm=norm_long)
+        axs[2].imshow(single_pred, cmap=cmap_long, norm=norm_long)
+        axs[3].imshow(overlay)
+        
+    fig.show()
+        
+    return pred_mask
+
+def rgb_visualize_prediction_vs_ground_truth_single_images_overlay(img, truth_mask, pred_mask, is_img_normalized=False):
+    
+    model.eval()
+
+    if is_img_normalized:
+
+        fig , axs =  plt.subplots(1, 3, figsize=(18, 12))
+
+        denorm_img = img.numpy().transpose((1, 2, 0)).copy()
+
+        for j in range(3):  # Undo normalization for each channel
+            denorm_img[:, :, j] = denorm_img[:, :, j] * img_std[j] + img_mean[j]
+
+        axs[0].set_title('Normalized Image')
+        axs[1].set_title('Denormalized Image')
+        axs[2].set_title('Image with Ground Truth')
+        axs[3].set_title('Image with Prediction')
+
+        axs[0].imshow(np.asarray(img.to('cpu').permute(1,2,0)))
+        axs[1].imshow(np.asarray(denorm_img.to('cpu').permute(1,2,0)))
+        axs[2].imshow(np.asarray(img.to('cpu').permute(1,2,0)))
+        axs[3].imshow(np.asarray(img.to('cpu').permute(1,2,0)))
+
+        axs[2].imshow(np.asarray(truth_mask.to('cpu')), cmap=cmap_long, norm=norm_long, alpha=0.3)
+        axs[3].imshow(np.asarray(pred_mask.to('cpu')), cmap=cmap_long, norm=norm_long, alpha=0.3)
+
+    else:
+
+        fig , axs =  plt.subplots(1, 3, figsize=(18, 12))
+
+        axs[0].set_title('Plain Image')
+        axs[1].set_title('Image with Ground Truth')
+        axs[2].set_title('Image with Prediction')
+
+        axs[0].imshow(np.asarray(img.to('cpu').permute(1,2,0)))
+        axs[1].imshow(np.asarray(img.to('cpu').permute(1,2,0)))
+        axs[2].imshow(np.asarray(img.to('cpu').permute(1,2,0)))
+
+        axs[1].imshow(np.asarray(truth_mask.to('cpu')), cmap=cmap_long, norm=norm_long, alpha=0.3)
+        axs[2].imshow(np.asarray(pred_mask.to('cpu')), cmap=cmap_long, norm=norm_long, alpha=0.3)
+
+    plt.show()
+
+def rgb_visualize_prediction_vs_ground_truth_single_images_overlay_postprocessed(img, truth_mask, pred_mask, processed_pred_mask, is_img_normalized=False):
+
+
+    fig , axs =  plt.subplots(2, 2, figsize=(16, 12))
+
+    axs[0, 0].set_title('Plain Image')
+    axs[0, 1].set_title('Image with Ground Truth')
+    axs[1, 0].set_title('Image with Prediction')
+    axs[1, 1].set_title('Image with Post Processing')
+
+    axs[0, 0].imshow(img)
+    axs[0, 1].imshow(img)
+    axs[1, 0].imshow(img)
+    axs[1, 1].imshow(img)
+
+    axs[0, 1].imshow(truth_mask, cmap=cmap_long, norm=norm_long, alpha=0.3)
+    axs[1, 0].imshow(pred_mask, cmap=cmap_long, norm=norm_long, alpha=0.3)
+    axs[1, 1].imshow(processed_pred_mask, cmap=cmap_long, norm=norm_long, alpha=0.3)
+
+    axs[0, 0].axis('off')
+    axs[0, 1].axis('off')
+    axs[1, 0].axis('off')
+    axs[1, 1].axis('off')
+
+    plt.show()
