@@ -969,7 +969,7 @@ def calculate_model_metrics(test_ds_average_img_iou,
         print(f'{CLASSES_LONG[i]}: {test_ds_average_class_dice[i]/(test_ds_class_not_empty[i]+1e-06):.4f}')
 
 
-def load_model(model_type, optimizer, model_path):
+def load_model(model_type, optimizer, scaler, model_path):
     model = model_type.to(DEVICE)
     checkpoint = torch.load(model_path, map_location=torch.device(DEVICE))
     model.load_state_dict(checkpoint['model_state_dict'])
