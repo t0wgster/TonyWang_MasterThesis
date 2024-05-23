@@ -24,6 +24,9 @@ from tqdm import tqdm
 from torch.optim.lr_scheduler import StepLR, MultiStepLR, ReduceLROnPlateau, ExponentialLR, CosineAnnealingLR
 from torchsummary import summary
 
+from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix, f1_score
+import skimage.io as skio # lighter dependency than tensorflow for working with our tensors/arrays
+
 ###############################################################
 ############ Custom Dataset and Preprocessing  ################
 ###############################################################
@@ -706,7 +709,7 @@ def iou_all_classes(truth_mask, pred_mask, N_CLASS=N_CLASSES, print_iou=False, S
     for i in range(N_CLASS):
         
         # condition for ground truth mask being all 0s    
-        if one_hot_truth_masks[:,:,i].eq(0).all():
+        if one_hot_truth_masks[:,:,i].eq(0).all() and one_hot_pred_masks[:,:,i].eq(0).all():
             iou_list.append(-1.0)
             if print_iou:
                 print(f'Prediction Mask {i} is empty')
@@ -734,7 +737,7 @@ def iou_all_classes(truth_mask, pred_mask, N_CLASS=N_CLASSES, print_iou=False, S
             
     return iou_list
 
-def calculate_img_iou(iou_array, N_CLASS=N_CLASSES, IGNORE_N_CLASSES=2):
+def calculate_img_iou(iou_array, N_CLASS=N_CLASSES, IGNORE_N_CLASSES=3):
     
     iou=0
     n_classes=IGNORE_N_CLASSES
@@ -765,7 +768,7 @@ def dice_all_classes(truth_mask, pred_mask, N_CLASS=N_CLASSES, print_dice=False,
     for i in range(N_CLASS):
         
         # condition for ground truth mask being all 0s    
-        if one_hot_truth_masks[:,:,i].eq(0).all():
+        if one_hot_truth_masks[:,:,i].eq(0).all() and one_hot_pred_masks[:,:,i].eq(0).all():
             if print_dice:
                  print(f'Prediction Mask {i} is empty')
             dice_list.append(-1)
@@ -790,7 +793,7 @@ def dice_all_classes(truth_mask, pred_mask, N_CLASS=N_CLASSES, print_dice=False,
     return dice_list
 
 #basically same function as calculate_class_iou
-def calculate_img_dice(iou_array, N_CLASS=N_CLASSES, IGNORE_N_CLASSES=2):
+def calculate_img_dice(iou_array, N_CLASS=N_CLASSES, IGNORE_N_CLASSES=3):
     
     iou=0
     n_classes=IGNORE_N_CLASSES
@@ -811,7 +814,7 @@ def calculate_img_dice(iou_array, N_CLASS=N_CLASSES, IGNORE_N_CLASSES=2):
     
     return class_iou
 
-def is_ground_truth_empy(truth_mask, N_CLASS=N_CLASSES):
+def is_ground_truth_empty(truth_mask, N_CLASS=N_CLASSES):
     
     gt_array=[]
 
@@ -825,6 +828,142 @@ def is_ground_truth_empy(truth_mask, N_CLASS=N_CLASSES):
 
     return gt_array
 
+def is_prediction_empty(pred_mask, N_CLASS=N_CLASSES):
+    
+    pred_array=[]
+
+    one_hot_pred_masks=F.one_hot(pred_mask.to(torch.int64), num_classes=N_CLASS).to(DEVICE)
+
+    for i in range(N_CLASS):
+        if one_hot_pred_masks[:,:,i].eq(0).all():
+            pred_array.append(True)
+        else:
+            pred_array.append(False)
+
+    return pred_array
+
 # confusion matrix
 def plot_confusion_matrix(gt_flat, pred_flat, label_array):
     conf=ConfusionMatrixDisplay.from_predictions(gt_flat, pred_flat, display_labels=label_array)
+
+def capture_model_metrics_and_confusion_matrix(model, test_dataset_final, visualize = True, confusion_matrix = True, norm_mode = 'pred'):
+
+    test_ds_average_img_iou=[]
+    test_ds_average_img_dice=[]
+    test_ds_average_class_iou=[0,0,0,0,0,0,0,0,0,0]
+    test_ds_average_class_dice=[0,0,0,0,0,0,0,0,0,0]
+    test_ds_class_not_empty=[0,0,0,0,0,0,0,0,0,0]
+
+    ground_truth_all_images=np.zeros((320,320, len(test_dataset_final)))
+    prediction_all_images=np.zeros((320,320, len(test_dataset_final)))
+    
+    with torch.no_grad():
+        model.eval()
+
+        for n, (img, mask) in enumerate(test_dataset_final):
+
+            # model prediction
+            img = img.to(DEVICE).unsqueeze(0)
+            mask = mask.to(DEVICE)
+
+            softmax = nn.Softmax(dim=1)
+
+            preds = torch.argmax(softmax(model(img.float())),axis=1).to('cpu').squeeze(0)
+
+            # convert torch tensor to numpy array
+            prediction_all_images[:,:,n] = preds.numpy()
+            ground_truth_all_images[:,:,n] = mask.to('cpu').numpy()
+
+            #calculate dice and iou score
+            dice_array=dice_all_classes(mask, preds, SINGLE_PREDICTION=True, print_dice=False)
+            iou_array=iou_all_classes(mask, preds, SINGLE_PREDICTION=True, print_iou=False)
+
+            if visualize:
+                rgb_visualize_prediction_vs_ground_truth_single_images_overlay(img.squeeze(0), mask, preds.squeeze(0))
+
+            print('IOU')
+            for i in range(len(NUM_UNIQUE_VALUES_LONG)):
+                if is_ground_truth_empty(mask)[i] and is_prediction_empty(preds)[i]:
+                    print(f'{TXT_COLORS_LONG_COLOR_ONLY[i]} - {CLASSES_LONG[i]}: Empty')
+                else:
+                    print(f'{TXT_COLORS_LONG_COLOR_ONLY[i]} - {CLASSES_LONG[i]}: {iou_array[i]:.4f}')
+
+                    #tracking class average of iou across all images
+                    test_ds_average_class_iou[i] += iou_array[i]
+                    test_ds_class_not_empty[i] += 1
+
+            print(TXT_COLORS_LONG_COLOR_ONLY[0]+ 'x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x')
+
+            print('Dice')
+            for i in range(len(NUM_UNIQUE_VALUES_LONG)):
+                if is_ground_truth_empty(mask)[i] and is_prediction_empty(preds)[i]:
+                    print(f'{TXT_COLORS_LONG_COLOR_ONLY[i]} - {CLASSES_LONG[i]}: Empty')
+                else:
+                    print(f'{TXT_COLORS_LONG_COLOR_ONLY[i]} - {CLASSES_LONG[i]}: {dice_array[i]:.4f}')
+
+                    #tracking class average of iou across all images
+                    test_ds_average_class_dice[i] += dice_array[i]
+    
+            print(TXT_COLORS_LONG_COLOR_ONLY[0])
+    
+            #only defects
+            # calculate iou and dice
+            img_average_iou=calculate_img_iou(iou_array)
+            img_average_dice=calculate_img_dice(dice_array)
+
+
+            print('Defects Only')
+            print(TXT_COLORS_LONG_COLOR_ONLY[0]+f'Image Average IoU: {img_average_iou}')
+            print(TXT_COLORS_LONG_COLOR_ONLY[0]+f'Image Average Dice: {img_average_dice}')
+
+            #all classes
+            # calculate iou and dice
+            img_average_iou=calculate_img_iou(iou_array, IGNORE_N_CLASSES=0)
+            img_average_dice=calculate_img_dice(dice_array, IGNORE_N_CLASSES=0)
+
+            print('All Classes')
+            print(TXT_COLORS_LONG_COLOR_ONLY[0]+f'Image Average IoU: {img_average_iou}')
+            print(TXT_COLORS_LONG_COLOR_ONLY[0]+f'Image Average Dice: {img_average_dice}')
+
+            test_ds_average_img_iou.append(img_average_iou)
+            test_ds_average_img_dice.append(img_average_dice)
+
+            # frees up memeory every 10th image
+            if n%10:
+                torch.cuda.empty_cache()
+
+        if confusion_matrix:
+            gt_flat = ground_truth_all_images.flatten()
+            prediction_flat = prediction_all_images.flatten()
+
+            fig, ax = plt.subplots(figsize=(10, 8))
+
+            conf=ConfusionMatrixDisplay.from_predictions(gt_flat, prediction_flat, display_labels=CLASSES_LONG, normalize=norm_mode, ax=ax, xticks_rotation='vertical')
+
+            plt.show()
+
+            return test_ds_average_img_iou, test_ds_average_img_dice, test_ds_average_class_iou, test_ds_average_class_dice, test_ds_class_not_empty
+        
+def calculate_model_metrics(test_ds_average_img_iou, 
+                            test_ds_average_img_dice, 
+                            test_ds_average_class_iou, 
+                            test_ds_average_class_dice, 
+                            test_ds_class_not_empty,
+                            test_dataset):
+    
+    test_ds_average_img_iou_=np.array(test_ds_average_img_iou)
+    test_ds_average_img_dice_=np.array(test_ds_average_img_dice)
+
+    print('Average IoU over entire Test Dataset: '+f'{np.sum(test_ds_average_img_iou_)/(len(test_dataset)+1e-06):.4f}')
+    print('Average Dice Score over entire Test Dataset: '+f'{np.sum(test_ds_average_img_dice_)/(len(test_dataset)+1e-06):.4f}')
+
+    print('--Class Average IoU--')
+    for i in range(9):
+
+        print(f'{CLASSES_LONG[i]}: {test_ds_average_class_iou[i]/(test_ds_class_not_empty[i]+1e-06):.4f}')
+
+    print('--Class Average Dice Score--')
+
+    for i in range(9):
+
+        print(f'{CLASSES_LONG[i]}: {test_ds_average_class_dice[i]/(test_ds_class_not_empty[i]+1e-06):.4f}')
