@@ -979,3 +979,152 @@ def load_model(model_type, optimizer, scaler, model_path):
     scaler.load_state_dict(checkpoint['scaler_state_dict'])
 
     return model
+
+def intersection_and_union_all_classes(truth_mask, pred_mask, N_CLASS=N_CLASSES, SINGLE_PREDICTION=False):
+    
+    intersection_list=[]
+    union_list=[]
+    
+    one_hot_pred_masks=F.one_hot(pred_mask.to(torch.int64), num_classes=N_CLASS).to(DEVICE)
+    one_hot_truth_masks=F.one_hot(truth_mask.to(torch.int64), num_classes=N_CLASS).to(DEVICE)
+    
+    for i in range(N_CLASS):
+        
+        if SINGLE_PREDICTION:
+            union=one_hot_pred_masks.squeeze(0)[:,:,i]|one_hot_truth_masks[:,:,i]
+            intersection=one_hot_pred_masks.squeeze(0)[:,:,i]&one_hot_truth_masks[:,:,i]
+        else:
+            union=one_hot_pred_masks[:,:,i]|one_hot_truth_masks[:,:,i]
+            intersection=one_hot_pred_masks[:,:,i]&one_hot_truth_masks[:,:,i]
+        
+        intersection_list.append(intersection.sum().item())
+        union_list.append(union.sum().item())
+             
+    return intersection_list, union_list
+
+def dice_values_all_classes(truth_mask, pred_mask, N_CLASS=N_CLASSES, print_dice=False, SINGLE_PREDICTION=False):
+    
+    numinator_list=[]
+    denominator_list=[]
+    
+    one_hot_pred_masks=F.one_hot(pred_mask.to(torch.int64), num_classes=N_CLASS).to(DEVICE)
+    one_hot_truth_masks=F.one_hot(truth_mask.to(torch.int64), num_classes=N_CLASS).to(DEVICE)
+    
+    for i in range(N_CLASS):
+        
+        if SINGLE_PREDICTION:
+            intersection=one_hot_pred_masks.squeeze(0)[:,:,i]&one_hot_truth_masks[:,:,i]
+            dice_numinator=2*intersection.sum().item()
+            dice_denominator=one_hot_pred_masks.squeeze(0)[:,:,i].sum().item()+one_hot_truth_masks[:,:,i].sum().item()
+        else:
+            intersection=one_hot_pred_masks[:,:,i]&one_hot_truth_masks[:,:,i]
+            dice_numinator=2*intersection.sum().item()
+            dice_denominator=one_hot_pred_masks[:,:,i].sum().item()+one_hot_truth_masks[:,:,i].sum().item()
+        
+        numinator_list.append(dice_numinator)
+        denominator_list.append(dice_denominator)
+
+    return numinator_list, denominator_list
+
+def capture_model_metrics_pixelwise_and_confusion_matrix(model, test_dataset_final, visualize = True, 
+                                                         confusion_matrix = True, norm_mode = 'pred',
+                                                         smooth=1e-8):
+
+    test_ds_average_img_iou=[]
+    test_ds_average_img_dice=[]
+    test_ds_average_class_iou=[0,0,0,0,0,0,0,0,0,0]
+    test_ds_average_class_dice=[0,0,0,0,0,0,0,0,0,0]
+    test_ds_class_not_empty=[0,0,0,0,0,0,0,0,0,0]
+
+    test_ds_union = [0,0,0,0,0,0,0,0,0,0]
+    test_ds_intersection = [0,0,0,0,0,0,0,0,0,0]
+    test_ds_numinator = [0,0,0,0,0,0,0,0,0,0]
+    test_ds_denominator = [0,0,0,0,0,0,0,0,0,0]
+
+    ground_truth_all_images=np.zeros((320,320, len(test_dataset_final)))
+    prediction_all_images=np.zeros((320,320, len(test_dataset_final)))
+    
+    with torch.no_grad():
+        model.eval()
+
+        for n, (img, mask) in enumerate(test_dataset_final):
+
+            # model prediction
+            img = img.to(DEVICE).unsqueeze(0)
+            mask = mask.to(DEVICE)
+
+            softmax = nn.Softmax(dim=1)
+
+            preds = torch.argmax(softmax(model(img.float())),axis=1).to('cpu').squeeze(0)
+
+            # convert torch tensor to numpy array
+            prediction_all_images[:,:,n] = preds.numpy()
+            ground_truth_all_images[:,:,n] = mask.to('cpu').numpy()
+
+            #calculate dice and iou score
+            is_list, u_list=intersection_and_union_all_classes(mask, preds, SINGLE_PREDICTION=True)
+            n_list, d_list=dice_values_all_classes(mask, preds, SINGLE_PREDICTION=True)
+
+            print(f'{is_list} - {u_list} - {n_list} - {d_list} - ')
+
+            if visualize:
+                rgb_visualize_prediction_vs_ground_truth_single_images_overlay(img.squeeze(0), mask, preds.squeeze(0))
+
+            print('IOU')
+            for i in range(len(NUM_UNIQUE_VALUES_LONG)):
+                if is_ground_truth_empty(mask)[i] and is_prediction_empty(preds)[i]:
+                    print(f'{TXT_COLORS_LONG_COLOR_ONLY[i]} - {CLASSES_LONG[i]}: Empty')
+                else:
+                    print(f'{TXT_COLORS_LONG_COLOR_ONLY[i]} - {CLASSES_LONG[i]}: {is_list[i]/(u_list[i]+smooth):.4f}')
+
+                    #tracking class average of iou across all images
+                    test_ds_union[i] += u_list[i]
+                    test_ds_intersection[i] += is_list[i]
+
+                    test_ds_class_not_empty[i] += 1
+
+            print(TXT_COLORS_LONG_COLOR_ONLY[0]+ 'x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x')
+
+            print('Dice')
+            for i in range(len(NUM_UNIQUE_VALUES_LONG)):
+                if is_ground_truth_empty(mask)[i] and is_prediction_empty(preds)[i]:
+                    print(f'{TXT_COLORS_LONG_COLOR_ONLY[i]} - {CLASSES_LONG[i]}: Empty')
+                else:
+                    print(f'{TXT_COLORS_LONG_COLOR_ONLY[i]} - {CLASSES_LONG[i]}: {n_list[i]/(d_list[i]+smooth):.4f}')
+
+                    #tracking class average of iou across all images
+                    test_ds_numinator[i] += n_list[i]
+                    test_ds_denominator[i] += d_list[i]
+    
+            print(TXT_COLORS_LONG_COLOR_ONLY[0])
+    
+            #only defects
+            # calculate iou and dice
+
+            intersection_array = np.array(is_list)
+            union_array = np.array(u_list)
+            numinator_array = np.array(n_list)
+            denominator_array = np.array(d_list)
+
+            iou_image_pixelwise = intersection_array[3:].sum()/(union_array[3:].sum()+smooth)
+            dice_image_pixelwise = numinator_array[3:].sum()/(denominator_array[3:].sum()+smooth)
+
+            print('Defects Only')
+            print(TXT_COLORS_LONG_COLOR_ONLY[0]+f'Image Average IoU: {iou_image_pixelwise}')
+            print(TXT_COLORS_LONG_COLOR_ONLY[0]+f'Image Average Dice: {dice_image_pixelwise}')
+
+            # frees up memeory every 10th image
+            if n%10:
+                torch.cuda.empty_cache()
+
+        if confusion_matrix:
+            gt_flat = ground_truth_all_images.flatten()
+            prediction_flat = prediction_all_images.flatten()
+
+            fig, ax = plt.subplots(figsize=(10, 8))
+
+            conf=ConfusionMatrixDisplay.from_predictions(gt_flat, prediction_flat, display_labels=CLASSES_LONG, normalize=norm_mode, ax=ax, xticks_rotation='vertical')
+
+            plt.show()
+
+            return 1 
