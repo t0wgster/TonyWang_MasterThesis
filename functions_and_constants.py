@@ -844,13 +844,16 @@ def is_prediction_empty(pred_mask, N_CLASS=N_CLASSES):
 def plot_confusion_matrix(gt_flat, pred_flat, label_array):
     conf=ConfusionMatrixDisplay.from_predictions(gt_flat, pred_flat, display_labels=label_array)
 
-def capture_model_metrics_and_confusion_matrix(model, test_dataset_final, visualize = True, confusion_matrix = True, norm_mode = 'pred'):
+def capture_model_metrics_pixelwise_and_confusion_matrix(model, test_dataset_final, visualize = True, 
+                                                         confusion_matrix = True, norm_mode = 'pred',
+                                                         smooth=1e-8):
 
-    test_ds_average_img_iou=[]
-    test_ds_average_img_dice=[]
-    test_ds_average_class_iou=[0,0,0,0,0,0,0,0,0,0]
-    test_ds_average_class_dice=[0,0,0,0,0,0,0,0,0,0]
-    test_ds_class_not_empty=[0,0,0,0,0,0,0,0,0,0]
+    test_ds_union = [0,0,0,0,0,0,0,0,0,0]
+    test_ds_intersection = [0,0,0,0,0,0,0,0,0,0]
+    test_ds_numerator = [0,0,0,0,0,0,0,0,0,0]
+    test_ds_denominator = [0,0,0,0,0,0,0,0,0,0]
+    img_dice = []
+    img_iou = []
 
     ground_truth_all_images=np.zeros((320,320, len(test_dataset_final)))
     prediction_all_images=np.zeros((320,320, len(test_dataset_final)))
@@ -873,8 +876,8 @@ def capture_model_metrics_and_confusion_matrix(model, test_dataset_final, visual
             ground_truth_all_images[:,:,n] = mask.to('cpu').numpy()
 
             #calculate dice and iou score
-            dice_array=dice_all_classes(mask, preds, SINGLE_PREDICTION=True, print_dice=False)
-            iou_array=iou_all_classes(mask, preds, SINGLE_PREDICTION=True, print_iou=False)
+            is_list, u_list=intersection_and_union_all_classes(mask, preds, SINGLE_PREDICTION=True)
+            n_list, d_list=dice_values_all_classes(mask, preds, SINGLE_PREDICTION=True)
 
             if visualize:
                 rgb_visualize_prediction_vs_ground_truth_single_images_overlay(img.squeeze(0), mask, preds.squeeze(0))
@@ -884,12 +887,12 @@ def capture_model_metrics_and_confusion_matrix(model, test_dataset_final, visual
                 if is_ground_truth_empty(mask)[i] and is_prediction_empty(preds)[i]:
                     print(f'{TXT_COLORS_LONG_COLOR_ONLY[i]} - {CLASSES_LONG[i]}: Empty')
                 else:
-                    print(f'{TXT_COLORS_LONG_COLOR_ONLY[i]} - {CLASSES_LONG[i]}: {iou_array[i]:.4f}')
+                    print(f'{TXT_COLORS_LONG_COLOR_ONLY[i]} - {CLASSES_LONG[i]}: {is_list[i]/(u_list[i]+smooth):.4f}')
 
                     #tracking class average of iou across all images
-                    test_ds_average_class_iou[i] += iou_array[i]
-                    test_ds_class_not_empty[i] += 1
-
+                    test_ds_union[i] += u_list[i]
+                    test_ds_intersection[i] += is_list[i]
+                    
             print(TXT_COLORS_LONG_COLOR_ONLY[0]+ 'x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x')
 
             print('Dice')
@@ -897,34 +900,31 @@ def capture_model_metrics_and_confusion_matrix(model, test_dataset_final, visual
                 if is_ground_truth_empty(mask)[i] and is_prediction_empty(preds)[i]:
                     print(f'{TXT_COLORS_LONG_COLOR_ONLY[i]} - {CLASSES_LONG[i]}: Empty')
                 else:
-                    print(f'{TXT_COLORS_LONG_COLOR_ONLY[i]} - {CLASSES_LONG[i]}: {dice_array[i]:.4f}')
+                    print(f'{TXT_COLORS_LONG_COLOR_ONLY[i]} - {CLASSES_LONG[i]}: {n_list[i]/(d_list[i]+smooth):.4f}')
 
                     #tracking class average of iou across all images
-                    test_ds_average_class_dice[i] += dice_array[i]
+                    test_ds_numerator[i] += n_list[i]
+                    test_ds_denominator[i] += d_list[i]
     
             print(TXT_COLORS_LONG_COLOR_ONLY[0])
     
             #only defects
             # calculate iou and dice
-            img_average_iou=calculate_img_iou(iou_array)
-            img_average_dice=calculate_img_dice(dice_array)
 
+            intersection_array = np.array(is_list)
+            union_array = np.array(u_list)
+            numinator_array = np.array(n_list)
+            denominator_array = np.array(d_list)
+
+            iou_image_pixelwise = intersection_array[3:].sum()/(union_array[3:].sum()+smooth)
+            dice_image_pixelwise = numinator_array[3:].sum()/(denominator_array[3:].sum()+smooth)
 
             print('Defects Only')
-            print(TXT_COLORS_LONG_COLOR_ONLY[0]+f'Image Average IoU: {img_average_iou}')
-            print(TXT_COLORS_LONG_COLOR_ONLY[0]+f'Image Average Dice: {img_average_dice}')
+            print(TXT_COLORS_LONG_COLOR_ONLY[0]+f'Image Average IoU: {iou_image_pixelwise:.4f}')
+            print(TXT_COLORS_LONG_COLOR_ONLY[0]+f'Image Average Dice: {dice_image_pixelwise:.4f}')
 
-            #all classes
-            # calculate iou and dice
-            img_average_iou=calculate_img_iou(iou_array, IGNORE_N_CLASSES=0)
-            img_average_dice=calculate_img_dice(dice_array, IGNORE_N_CLASSES=0)
-
-            print('All Classes')
-            print(TXT_COLORS_LONG_COLOR_ONLY[0]+f'Image Average IoU: {img_average_iou}')
-            print(TXT_COLORS_LONG_COLOR_ONLY[0]+f'Image Average Dice: {img_average_dice}')
-
-            test_ds_average_img_iou.append(img_average_iou)
-            test_ds_average_img_dice.append(img_average_dice)
+            img_dice.append(dice_image_pixelwise)
+            img_iou.append(iou_image_pixelwise)
 
             # frees up memeory every 10th image
             if n%10:
@@ -940,31 +940,26 @@ def capture_model_metrics_and_confusion_matrix(model, test_dataset_final, visual
 
             plt.show()
 
-            return test_ds_average_img_iou, test_ds_average_img_dice, test_ds_average_class_iou, test_ds_average_class_dice, test_ds_class_not_empty
+            return test_ds_union, test_ds_intersection, test_ds_numerator, test_ds_denominator, iou_image_pixelwise, dice_image_pixelwise
         
-def calculate_model_metrics(test_ds_average_img_iou, 
-                            test_ds_average_img_dice, 
-                            test_ds_average_class_iou, 
-                            test_ds_average_class_dice, 
-                            test_ds_class_not_empty,
-                            test_dataset):
-    
-    test_ds_average_img_iou_=np.array(test_ds_average_img_iou)
-    test_ds_average_img_dice_=np.array(test_ds_average_img_dice)
+def calculate_model_metrics(test_ds_union, 
+                            test_ds_intersection, 
+                            test_ds_numerator, 
+                            test_ds_denominator):
 
-    print('Average IoU over entire Test Dataset: '+f'{np.sum(test_ds_average_img_iou_)/(len(test_dataset)+1e-06):.4f}')
-    print('Average Dice Score over entire Test Dataset: '+f'{np.sum(test_ds_average_img_dice_)/(len(test_dataset)+1e-06):.4f}')
+    print('Average IoU over entire Test Dataset: '+f'{np.sum(np.array(test_ds_union))/(np.sum(np.array(test_ds_intersection))+1e-06):.4f}')
+    print('Average Dice Score over entire Test Dataset: '+f'{np.sum(np.array(test_ds_numerator))/(np.sum(np.array(test_ds_denominator))+1e-06):.4f}')
 
     print('--Class Average IoU--')
     for i in range(9):
 
-        print(f'{CLASSES_LONG[i]}: {test_ds_average_class_iou[i]/(test_ds_class_not_empty[i]+1e-06):.4f}')
+        print(f'{CLASSES_LONG[i]}: {test_ds_union[i]/(test_ds_intersection[i]+1e-06):.4f}')
 
     print('--Class Average Dice Score--')
 
     for i in range(9):
 
-        print(f'{CLASSES_LONG[i]}: {test_ds_average_class_dice[i]/(test_ds_class_not_empty[i]+1e-06):.4f}')
+        print(f'{CLASSES_LONG[i]}: {test_ds_numerator[i]/(test_ds_denominator[i]+1e-06):.4f}')
 
 
 def load_model(model_type, optimizer, scaler, model_path):
