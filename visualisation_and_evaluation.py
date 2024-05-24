@@ -364,7 +364,7 @@ def calculate_model_metrics(test_ds_intersection,
     print('--Class Average IoU--')
     for i in range(len(CLASSES_LONG)):
 
-        print(f'{CLASSES_LONG[i]}: {test_ds_union[i]/(test_ds_intersection[i]+1e-06):.4f}')
+        print(f'{CLASSES_LONG[i]}: {test_ds_intersection[i]/(test_ds_union[i]+1e-06):.4f}')
 
     print('--Class Average Dice Score--')
 
