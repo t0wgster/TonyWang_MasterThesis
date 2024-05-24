@@ -347,13 +347,19 @@ def capture_model_metrics_pixelwise_and_confusion_matrix(model, test_dataset_fin
 
             return test_ds_union, test_ds_intersection, test_ds_numerator, test_ds_denominator, img_iou, img_dice
         
-def calculate_model_metrics(test_ds_union, 
-                            test_ds_intersection, 
+def calculate_model_metrics(test_ds_intersection, 
+                            test_ds_union, 
                             test_ds_numerator, 
-                            test_ds_denominator):
+                            test_ds_denominator,
+                            defects_only):
 
-    print('Average IoU over entire Test Dataset: '+f'{np.sum(np.array(test_ds_intersection[3:]))/(np.sum(np.array(test_ds_union)[3:])+1e-06):.4f}')
-    print('Average Dice Score over entire Test Dataset: '+f'{np.sum(np.array(test_ds_numerator[3:]))/(np.sum(np.array(test_ds_denominator[3:]))+1e-06):.4f}')
+    if defects_only:
+        print('Average IoU over entire Test Dataset: '+f'{np.sum(np.array(test_ds_intersection[3:]))/(np.sum(np.array(test_ds_union)[3:])+1e-06):.4f}')
+        print('Average Dice Score over entire Test Dataset: '+f'{np.sum(np.array(test_ds_numerator[3:]))/(np.sum(np.array(test_ds_denominator[3:]))+1e-06):.4f}')
+
+    else:
+        print('Average IoU over entire Test Dataset: '+f'{np.sum(np.array(test_ds_intersection))/(np.sum(np.array(test_ds_union))+1e-06):.4f}')
+        print('Average Dice Score over entire Test Dataset: '+f'{np.sum(np.array(test_ds_numerator))/(np.sum(np.array(test_ds_denominator))+1e-06):.4f}')
 
     print('--Class Average IoU--')
     for i in range(len(CLASSES_LONG)):
