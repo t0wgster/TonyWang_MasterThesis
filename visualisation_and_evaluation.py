@@ -144,7 +144,6 @@ def rgb_visualize_prediction_vs_ground_truth_single_images_overlay(img, truth_ma
 
 def rgb_visualize_prediction_vs_ground_truth_single_images_overlay_postprocessed(img, truth_mask, pred_mask, processed_pred_mask, is_img_normalized=False):
 
-
     fig , axs =  plt.subplots(2, 2, figsize=(16, 12))
 
     axs[0, 0].set_title('Plain Image')
@@ -225,6 +224,52 @@ def calculate_img_iou(iou_array, N_CLASS=N_CLASSES, IGNORE_N_CLASSES=3):
     class_iou = iou/(N_CLASS-n_classes+1e-8)
     
     return class_iou
+
+def intersection_and_union_all_classes(truth_mask, pred_mask, N_CLASS=N_CLASSES, SINGLE_PREDICTION=False):
+    
+    intersection_list=[]
+    union_list=[]
+    
+    one_hot_pred_masks=F.one_hot(pred_mask.to(torch.int64), num_classes=N_CLASS).to(DEVICE)
+    one_hot_truth_masks=F.one_hot(truth_mask.to(torch.int64), num_classes=N_CLASS).to(DEVICE)
+    
+    for i in range(N_CLASS):
+        
+        if SINGLE_PREDICTION:
+            union=one_hot_pred_masks.squeeze(0)[:,:,i]|one_hot_truth_masks[:,:,i]
+            intersection=one_hot_pred_masks.squeeze(0)[:,:,i]&one_hot_truth_masks[:,:,i]
+        else:
+            union=one_hot_pred_masks[:,:,i]|one_hot_truth_masks[:,:,i]
+            intersection=one_hot_pred_masks[:,:,i]&one_hot_truth_masks[:,:,i]
+        
+        intersection_list.append(intersection.sum().item())
+        union_list.append(union.sum().item())
+             
+    return intersection_list, union_list
+
+def dice_values_all_classes(truth_mask, pred_mask, N_CLASS=N_CLASSES, print_dice=False, SINGLE_PREDICTION=False):
+    
+    numinator_list=[]
+    denominator_list=[]
+    
+    one_hot_pred_masks=F.one_hot(pred_mask.to(torch.int64), num_classes=N_CLASS).to(DEVICE)
+    one_hot_truth_masks=F.one_hot(truth_mask.to(torch.int64), num_classes=N_CLASS).to(DEVICE)
+    
+    for i in range(N_CLASS):
+        
+        if SINGLE_PREDICTION:
+            intersection=one_hot_pred_masks.squeeze(0)[:,:,i]&one_hot_truth_masks[:,:,i]
+            dice_numinator=2*intersection.sum().item()
+            dice_denominator=one_hot_pred_masks.squeeze(0)[:,:,i].sum().item()+one_hot_truth_masks[:,:,i].sum().item()
+        else:
+            intersection=one_hot_pred_masks[:,:,i]&one_hot_truth_masks[:,:,i]
+            dice_numinator=2*intersection.sum().item()
+            dice_denominator=one_hot_pred_masks[:,:,i].sum().item()+one_hot_truth_masks[:,:,i].sum().item()
+        
+        numinator_list.append(dice_numinator)
+        denominator_list.append(dice_denominator)
+
+    return numinator_list, denominator_list
 
 #calcuates the dice score of a SINGLE prediction, not a single batch
 def dice_all_classes(truth_mask, pred_mask, N_CLASS=N_CLASSES, print_dice=False, SINGLE_PREDICTION=False):
