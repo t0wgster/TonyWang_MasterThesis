@@ -29,7 +29,7 @@ class encoding_block(nn.Module):
 
 class unet_model_classic(nn.Module):
     def __init__(self,out_channels,features=[64, 128, 256, 512]):
-        super(unet_model_gelu,self).__init__()
+        super(unet_model_classic,self).__init__()
         self.pool = nn.MaxPool2d(kernel_size=(2,2),stride=(2,2))
         self.conv1 = encoding_block(3,features[0])
         self.conv2 = encoding_block(features[0],features[1])
