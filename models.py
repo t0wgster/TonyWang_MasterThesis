@@ -353,3 +353,98 @@ class hsi_unet_model_gelu(nn.Module):
         x = self.conv8(x)
         x = self.final_layer(x)
         return x
+
+###############################################################
+############### HSI/RGB UNET Feature Fusion ###################
+###############################################################
+
+class unet_model_gelu_sensorfusion(nn.Module):
+    def __init__(self,out_channels=9):
+        super(unet_model_gelu_sensorfusion,self).__init__()
+        self.pool = nn.MaxPool2d(kernel_size=(2,2),stride=(2,2))
+        self.conv1 = encoding_block_gelu_2_conv(3, 64)
+        self.conv2 = encoding_block_gelu_2_conv(64, 128)
+        self.conv3 = encoding_block_gelu_2_conv(128, 256)
+        self.conv4 = encoding_block_gelu_2_conv(256, 512)
+        self.conv_bridge = encoding_block_gelu_2_conv(512, 1024)
+        self.deconv_bridge_1 = encoding_block_gelu_2_conv(2048, 1024)
+        self.deconv_bridge_2 = encoding_block_gelu_2_conv(1024, 512)
+        self.deconv4 = encoding_block_gelu_3_conv(1536, 1024, 512)
+        self.deconv3 = encoding_block_gelu_3_conv(768, 512, 256)
+        self.deconv2 = encoding_block_gelu_3_conv(384, 256, 128)
+        self.deconv1 = encoding_block_gelu_3_conv(192, 128, 64)
+        self.tconv5 = nn.ConvTranspose2d(1024, 512, kernel_size=2, stride=2)
+        self.tconv4 = nn.ConvTranspose2d(512, 256, kernel_size=2, stride=2)
+        self.tconv3 = nn.ConvTranspose2d(256, 128, kernel_size=2, stride=2)
+        self.tconv2 = nn.ConvTranspose2d(128, 64, kernel_size=2, stride=2)
+        self.final_layer = nn.Conv2d(64,out_channels,kernel_size=1)
+    def forward(self, x_rgb, x_hsi):
+        skip_connections_rgb = []
+        skip_connections_hsi = []
+        
+        #rgb downsampling
+        x_rgb = self.conv1(x_rgb) # 320, 320, 3 -> 320, 320, 64
+        skip_connections_rgb.append(x_rgb)
+        x_rgb = self.pool(x_rgb)
+        
+        x_rgb = self.conv2(x_rgb) # 320, 320, 64 -> 160, 160, 128 
+        skip_connections_rgb.append(x_rgb)
+        x_rgb = self.pool(x_rgb)
+        
+        x_rgb = self.conv3(x_rgb) # 160, 160, 128 -> 80, 80, 256
+        skip_connections_rgb.append(x_rgb)
+        x_rgb = self.pool(x_rgb)
+        
+        x_rgb = self.conv4(x_rgb) # 80, 80, 256 -> 40, 40, 512
+        skip_connections_rgb.append(x_rgb)
+        x_rgb = self.pool(x_rgb)
+        
+        x_rgb = self.conv_bridge(x_rgb) # 40, 40, 512 -> 20, 20, 1024
+        skip_connections_rgb = skip_connections_rgb[::-1] #reverses order of list
+        
+        #hsi downsampling
+        x_hsi = self.conv1(x_hsi) # 320, 320, 3 -> 320, 320, 64
+        skip_connections_hsi.append(x_hsi)
+        x_hsi = self.pool(x_hsi)
+        
+        x_hsi = self.conv2(x_hsi) # 320, 320, 64 -> 
+        skip_connections_hsi.append(x_hsi)
+        x_hsi = self.pool(x_hsi)
+        
+        x_hsi = self.conv3(x_hsi) # 160, 160, 128 -> 80, 80, 256
+        skip_connections_hsi.append(x_hsi)
+        x_hsi = self.pool(x_hsi)
+        
+        x_hsi = self.conv4(x_hsi) # 80, 80, 256 -> 40, 40, 512
+        skip_connections_hsi.append(x_hsi)
+        x_hsi = self.pool(x_hsi)
+        
+        x_hsi = self.conv_bridge(x_hsi) # 40, 40, 512 -> 20, 20, 1024
+        skip_connections_hsi = skip_connections_hsi[::-1] #reverses order of list
+        
+        #bridge
+        x_comb = torch.cat((x_rgb, x_hsi), dim=1) #-> 20, 20, 2048
+        x_comb = self.deconv_bridge_1(x_comb) # 20, 20, 2048 -> 20, 20, 1024
+        
+        # combined upsampling
+        x_comb = self.tconv5(x_comb) # 20, 20, 1024 -> 40, 40, 512
+        #x_comb = self.deconv_bridge_2(x_comb) # 40, 40, 1024 -> 40, 40, 512
+        x_comb = torch.cat((skip_connections_rgb[0], skip_connections_hsi[0], x_comb), dim=1) #-> 40, 40, 1536
+        print(x_comb.shape)
+        
+        x_comb = self.deconv4(x_comb) # 40, 40, 1536 -> 40, 40, 512
+        x_comb = self.tconv4(x_comb) # 40, 40, 512 -> 80, 80, 512
+        x_comb = torch.cat((skip_connections_rgb[1], skip_connections_hsi[1], x_comb), dim=1) #-> 80, 80, 768
+        
+        x_comb = self.deconv3(x_comb) # 80, 80, 768 -> 80, 80, 256
+        x_comb = self.tconv3(x_comb) # 80, 80, 256 -> 160, 160, 128
+        x_comb = torch.cat((skip_connections_rgb[2], skip_connections_hsi[2], x_comb), dim=1) #-> 160, 160, 384
+        
+        x_comb = self.deconv2(x_comb) # 160, 160, 384 -> 160, 160, 128
+        x_comb = self.tconv2(x_comb) # 160, 160, 128 -> 320, 320, 64
+        x_comb = torch.cat((skip_connections_rgb[3], skip_connections_hsi[3], x_comb), dim=1) #-> 320, 320, 192
+        
+        x_comb = self.deconv1(x_comb) # 320, 320, 192 -> 320, 320, 64
+        x_comb = self.final_layer(x_comb)
+        
+        return x_comb
