@@ -75,6 +75,8 @@ def img_contains_nothing(mask):
     else:
         return True
 
+
+################################ RGB #####################################
 class _WHDataset_10_classes(Dataset):
     def __init__(self, img_dir, mask_dir, transform_resize_img_only=None, transform=None):
         self.img_dir=img_dir
@@ -120,6 +122,89 @@ class _WHDataset_10_classes(Dataset):
                     i = i - 1
 
         return image_trans, mask_trans
+
+################################ HSI #####################################
+
+class _WH_HSI_Dataset(Dataset):
+    def __init__(self, img_dir, mask_dir, transform=None, hsi_mask_crop=None):
+        self.img_dir=img_dir
+        self.mask_dir=mask_dir
+        self.transform=transform
+        self.hsi_mask_crop = hsi_mask_crop
+        self.images=os.listdir(img_dir)
+
+    def __len__(self):
+        return len(self.images)
+
+    def __getitem__(self, idx):
+        img_name=os.path.join(self.img_dir, self.images[idx])
+
+        mask_name=os.path.join(self.mask_dir, self.images[idx])
+
+        #read in image as PIL and mask as numpy
+
+        image=np.load(img_name)
+        #sliced_image = image.copy()[:,:,::4]
+        mask=np.load(mask_name)
+
+        #crop hsi mask into same height and width as images
+        if self.hsi_mask_crop:
+          cropped = self.hsi_mask_crop(image=mask)
+          mask_cropped = cropped["image"]
+
+        #replace mask values with 0,1,2,3,4,5, etc.
+        replace_np_values(mask_cropped, defects_only=True)
+
+        # normalize image and convert to float32
+        image=(image/4096).astype(np.float32)
+        #print(image.dtype)
+
+        #loops around to find transformed images with defects, after 7 loops it just takes whatever it finds
+        if self.transform:
+            for i in range(14):
+                transformed = self.transform(image=image, mask=mask_cropped)
+                image_trans = transformed["image"]
+                mask_trans = transformed["mask"]
+                #mask_trans=mask_trans[:,:,0]
+                if img_contains_defects(mask_trans):
+                    break;
+                if img_contains_nothing(mask_trans):
+                    i = i - 1
+
+        return image_trans, mask_trans
+
+################################ Sensor Fusion #####################################
+
+class _WH_RGB_HSI_Dataset(Dataset):
+    def __init__(self, rgb_img_dir, hsi_img_dir, mask_dir, transform=None):
+        self.rgb_img_dir=rgb_img_dir
+        self.hsi_img_dir=hsi_img_dir
+        self.mask_dir=mask_dir
+        self.transform=transform
+
+        self.rgb_images=os.listdir(rgb_img_dir)
+        self.hsi_images=os.listdir(hsi_img_dir)
+        
+    def __len__(self):
+        return len(self.hsi_images)
+
+    def __getitem__(self, idx):
+        
+        rgb_img_name=os.path.join(self.rgb_img_dir, self.rgb_images[idx])
+        hsi_img_name=os.path.join(self.hsi_img_dir, self.hsi_images[idx])
+        mask_name=os.path.join(self.mask_dir, self.images[idx])
+
+        #read in RGB image as PIL
+        rgb_image=np.array(Image.open(img_name).convert('RGB'))/255
+
+        #read in HSI image and mask as numpy
+        hsi_image=np.load(img_name).astype(np.float32)/4095 #care how many channels the HSI images have
+        mask = np.load(mask_name)
+        
+        #replace mask values with 0,1,2,3,4,5, etc.
+        replace_np_values(mask, defects_only=True)
+
+
 
 ###########################################################
 #################### Augmentations ########################
