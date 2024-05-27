@@ -29,9 +29,9 @@ import skimage.io as skio # lighter dependency than tensorflow for working with 
 
 from thesis_constants.functions_and_constants import *
 
-###############################################
+##################################################
 ############### Visualisation ####################
-###############################################
+##################################################
 
 def rgb_visualize_prediction_vs_ground_truth_single_batches_before_argmax(model, loader, height, width):
     
