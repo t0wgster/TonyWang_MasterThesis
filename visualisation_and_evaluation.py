@@ -419,3 +419,20 @@ def dice_values_all_classes(truth_mask, pred_mask, N_CLASS=N_CLASSES, print_dice
 
     return numinator_list, denominator_list
 
+def calculate_model_inference_time(model, batch):
+
+    #here implement division by batch size
+    img, mask = next(iter(batch))
+        
+    start_time = time.time()
+    model.eval()
+    with torch.no_grad():
+        _ = model(img)
+    end_time = time.time()
+
+    inference_time = end_time - start_time
+    print(inference_time)
+
+    return inference_time
+        
+    
