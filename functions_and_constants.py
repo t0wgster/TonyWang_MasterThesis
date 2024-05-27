@@ -121,6 +121,10 @@ class _WHDataset_10_classes(Dataset):
 
         return image_trans, mask_trans
 
+###########################################################
+#################### Augmentations ########################
+###########################################################
+
 transformation = A.Compose([
     A.Resize(640,640),
     A.RandomCrop(width=320, height=320),
@@ -151,9 +155,9 @@ test_transformation = A.Compose([
     ToTensorV2()
 ])
 
-##############################################
-#############  Constants  ####################
-##############################################
+#################################################
+################  Constants  ####################
+#################################################
 
 print(torch.cuda.is_available())
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
@@ -173,9 +177,9 @@ norm_long = BoundaryNorm(BOUNDARIES_LONG, len(COLORS_LONG))
 
 N_CLASSES = 10
 
-#######################################################
-#############  Training Functions  ####################
-#######################################################
+##########################################################
+################  Training Functions  ####################
+##########################################################
 
 class DiceLoss(nn.Module):
     def __init__(self, n_classes):
@@ -561,6 +565,7 @@ def model_training(model, train_loader, val_loader, num_epochs, loss_fn, optimiz
             
     return model, loss, avg_train_loss_list, avg_val_loss_list
 
+##########################################
 
 def rgb_visualize_prediction_vs_ground_truth_single_batches_before_argmax(model, loader, height, width):
     
