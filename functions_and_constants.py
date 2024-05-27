@@ -205,6 +205,21 @@ class _WH_RGB_HSI_Dataset(Dataset):
         replace_np_values(mask, defects_only=True)
 
 
+        #loops around to find transformed images with defects, after 7 loops it just takes whatever it finds
+        if self.transform:
+            for i in range(14):
+                transformed = self.transform(image=rgb_image, image1 = hsi_image, mask=mask)
+                rgb_image_trans = transformed["image"]
+                hsi_image_trans = transformed["image1"]
+                mask_trans = transformed["mask"]
+
+                #check if mask onctains defects, if not then reroll
+                if img_contains_defects(mask_trans):
+                    break;
+                if img_contains_nothing(mask_trans):
+                    i = i - 1
+
+        return rgb_image_trans, hsi_image_trans, mask_trans
 
 ###########################################################
 #################### Augmentations ########################
