@@ -69,6 +69,10 @@ def replace_np_values(np_array, defects_only):
     new_value = 9
     np_array[np_array == value_to_replace] = new_value
 
+    value_to_replace = 512
+    new_value = 9
+    np_array[np_array == value_to_replace] = new_value
+
     if defects_only:
         value_to_replace = 1
         new_value = 0
