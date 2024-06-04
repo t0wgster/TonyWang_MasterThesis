@@ -36,10 +36,10 @@ def replace_np_values(np_array, defects_only):
     value_to_replace = 4
     new_value = 3
     np_array[np_array == value_to_replace] = new_value
-    
+
     value_to_replace = 8
     new_value = 4
-    np_array[np_array == value_to_replace] = new_value   
+    np_array[np_array == value_to_replace] = new_value
 
     value_to_replace = 16
     new_value = 5
@@ -47,16 +47,20 @@ def replace_np_values(np_array, defects_only):
 
     value_to_replace = 32
     new_value = 6
-    np_array[np_array == value_to_replace] = new_value  
+    np_array[np_array == value_to_replace] = new_value
 
     value_to_replace = 64
     new_value = 7
-    np_array[np_array == value_to_replace] = new_value       
+    np_array[np_array == value_to_replace] = new_value
 
     value_to_replace = 128
     new_value = 8
-    np_array[np_array == value_to_replace] = new_value      
+    np_array[np_array == value_to_replace] = new_value
     
+    value_to_replace = 256
+    new_value = 9
+    np_array[np_array == value_to_replace] = new_value
+
     if defects_only:
         value_to_replace = 1
         new_value = 0
@@ -64,11 +68,11 @@ def replace_np_values(np_array, defects_only):
 
 # finds out if image contains any defects
 def img_contains_defects(mask):
-    if (torch.any(mask == 2) or torch.any(mask == 3) or torch.any(mask == 4) or torch.any(mask == 5) or torch.any(mask == 6) or torch.any(mask == 8)):
+    if (torch.any(mask == 2) or torch.any(mask == 3) or torch.any(mask == 4) or torch.any(mask == 5) or torch.any(mask == 6) or torch.any(mask == 7) or torch.any(mask == 9)):
         return True
     else:
         return False
-    
+
 def img_contains_nothing(mask):
     if torch.all(mask == 0):
         return False
@@ -276,6 +280,9 @@ BOUNDARIES_LONG = [-0.5, 0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5]
 norm_long = BoundaryNorm(BOUNDARIES_LONG, len(COLORS_LONG))
 
 N_CLASSES = 10
+
+HSI_HEIGHT = 672
+HSI_WIDTH = 320
 
 ##########################################################
 ################  Training Functions  ####################
