@@ -305,7 +305,7 @@ class preprocessing_block(nn.Module):
 
 class hsi_unet_model_gelu_pca(nn.Module):
     def __init__(self, in_channels, out_channels=9, features=[64, 128, 256, 512]):
-        super(hsi_unet_model_gelu,self).__init__()
+        super(hsi_unet_model_gelu_pca,self).__init__()
         self.pool = nn.MaxPool2d(kernel_size=(2,2),stride=(2,2))
         self.conv1 = encoding_block_gelu(in_channels,features[0])
         self.conv2 = encoding_block_gelu(features[0],features[1])
