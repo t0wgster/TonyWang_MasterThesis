@@ -259,6 +259,31 @@ test_transformation = A.Compose([
     ToTensorV2()
 ])
 
+hsi_mask_crop = A.Compose([
+    A.Crop(x_min=0, y_min=0, x_max=320, y_max=672)
+])
+
+hsi_transformation = A.Compose([
+    #A.Resize(640,640),
+    A.RandomCrop(width=224, height=224),
+    A.RandomRotate90(p=0.5),
+    A.Rotate(limit=20, p=0.5, border_mode=cv2.BORDER_CONSTANT),
+    #A.RandomBrightnessContrast(p=0.5, brightness_limit=(-0.1, 0.25), contrast_limit=(-0.1, 0.15), brightness_by_max=False),
+    A.HorizontalFlip(p=0.5),
+    A.VerticalFlip(p=0.5),
+    #A.RGBShift(r_shift_limit=(0,0.1), g_shift_limit=0, b_shift_limit=0, p=0.5),
+    #A.augmentations.transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5)),
+    #A.augmentations.transforms.Normalize(mean=img_mean, std=img_std),
+    ToTensorV2()
+])
+
+test_hsi_transformation = A.Compose([
+    #A.RGBShift(r_shift_limit=(0,0.1), g_shift_limit=0, b_shift_limit=0, p=0.5),
+    #A.augmentations.transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5)),
+    #A.augmentations.transforms.Normalize(mean=img_mean, std=img_std),
+    ToTensorV2()
+])
+
 #################################################
 ################  Constants  ####################
 #################################################
