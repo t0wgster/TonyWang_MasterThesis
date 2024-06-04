@@ -22,7 +22,6 @@ from torch.optim import Adam
 import torch.nn.functional as F
 from tqdm import tqdm
 from torch.optim.lr_scheduler import StepLR, MultiStepLR, ReduceLROnPlateau, ExponentialLR, CosineAnnealingLR
-from torchsummary import summary
 
 from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix, f1_score
 import skimage.io as skio # lighter dependency than tensorflow for working with our tensors/arrays
@@ -33,6 +32,15 @@ import skimage.io as skio # lighter dependency than tensorflow for working with 
 
 #replace mask values with smaller numbers
 def replace_np_values(np_array, defects_only):
+
+    value_to_replace = 1
+    new_value = 1
+    np_array[np_array == value_to_replace] = new_value    
+
+    value_to_replace = 2
+    new_value = 2
+    np_array[np_array == value_to_replace] = new_value
+    
     value_to_replace = 4
     new_value = 3
     np_array[np_array == value_to_replace] = new_value
