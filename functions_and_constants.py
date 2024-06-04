@@ -165,7 +165,7 @@ class _WH_HSI_Dataset(Dataset):
           mask_cropped = cropped["image"]
 
         #replace mask values with 0,1,2,3,4,5, etc.
-        replace_np_values(mask_cropped, defects_only=True)
+        replace_np_values(mask_cropped, defects_only=False)
 
         # normalize image and convert to float32
         image=(image/4096).astype(np.float32)
