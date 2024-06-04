@@ -322,7 +322,6 @@ class hsi_unet_model_gelu_pca(nn.Module):
         self.bottleneck = encoding_block_gelu(features[3],features[3]*2)
         self.final_layer = nn.Conv2d(features[0],out_channels,kernel_size=1)
     def forward(self,x):
-        x = self.preprocess(x)
         skip_connections = []
         x = self.conv1(x)
         skip_connections.append(x)
