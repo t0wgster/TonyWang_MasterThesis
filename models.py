@@ -444,8 +444,8 @@ class unet_model_gelu_sensorfusion(nn.Module):
     def __init__(self,in_channels_hsi, out_channels=10):
         super(unet_model_gelu_sensorfusion,self).__init__()
         self.pool = nn.MaxPool2d(kernel_size=(2,2),stride=(2,2))
-        self.conv1_rgb = encoding_block_gelu_2_conv_init_hsi(3, 64)
-        self.conv1_hsi = encoding_block_gelu_2_conv_init_hsi(in_channels_hsi, 64)
+        self.conv1_rgb = encoding_block_gelu_2_conv(3, 64)
+        self.conv1_hsi = encoding_block_gelu_2_conv(in_channels_hsi, 64)
         self.conv2 = encoding_block_gelu_2_conv(64, 128)
         self.conv3 = encoding_block_gelu_2_conv(128, 256)
         self.conv4 = encoding_block_gelu_2_conv(256, 512)
@@ -513,7 +513,7 @@ class unet_model_gelu_sensorfusion(nn.Module):
         x_comb = self.tconv5(x_comb) # 20, 20, 1024 -> 40, 40, 512
         #x_comb = self.deconv_bridge_2(x_comb) # 40, 40, 1024 -> 40, 40, 512
         x_comb = torch.cat((skip_connections_rgb[0], skip_connections_hsi[0], x_comb), dim=1) #-> 40, 40, 1536
-        print(x_comb.shape)
+        #print(x_comb.shape)
         
         x_comb = self.deconv4(x_comb) # 40, 40, 1536 -> 40, 40, 512
         x_comb = self.tconv4(x_comb) # 40, 40, 512 -> 80, 80, 512
