@@ -283,8 +283,8 @@ class _WH_RGB_HSI_Dataset(Dataset):
     def __getitem__(self, idx):
         
         rgb_img_name=os.path.join(self.rgb_img_dir, self.rgb_images[idx])
-        hsi_img_name=os.path.join(self.hsi_img_dir, self.hsi_images[idx])
-        mask_name=os.path.join(self.mask_dir, self.hsi_images[idx])
+        hsi_img_name=os.path.join(self.hsi_img_dir, self.rgb_images[idx].replace('.png', '.npy'))
+        mask_name=os.path.join(self.mask_dir, self.rgb_images[idx].replace('.png', '.npy'))
 
         #read in RGB image as PIL
         rgb_image=np.array(Image.open(rgb_img_name).convert('RGB'))/255
