@@ -92,11 +92,15 @@ sf_transformation = A.Compose([
     A.HorizontalFlip(p=0.5),
     A.VerticalFlip(p=0.5),
     ToTensorV2()
-])
+],
+additional_targets={'image1':'image'}
+)
 
 sf_no_transformation = A.Compose([
     ToTensorV2()
-])
+],
+additional_targets={'image1':'image'}
+)
 
 ###############################################################
 ############ Custom Dataset and Preprocessing  ################
