@@ -296,6 +296,15 @@ test_hsi_transformation = A.Compose([
     ToTensorV2()
 ])
 
+sf_transformation = A.Compose([
+    A.RandomCrop(width=224, height=224),
+    A.RandomRotate90(p=0.5),
+    A.Rotate(limit=20, p=0.5, border_mode=cv2.BORDER_CONSTANT),
+    A.HorizontalFlip(p=0.5),
+    A.VerticalFlip(p=0.5),
+    ToTensorV2()
+])
+
 #################################################
 ################  Constants  ####################
 #################################################
