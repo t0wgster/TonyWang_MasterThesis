@@ -353,7 +353,7 @@ class hsi_unet_model_gelu_pca(nn.Module):
         return x
 
 class hsi_unet_model_gelu(nn.Module):
-    def __init__(self, in_channels, out_channels=9, features=[64, 128, 256, 512]):
+    def __init__(self, in_channels, out_channels=10, features=[64, 128, 256, 512]):
         super(hsi_unet_model_gelu,self).__init__()
         self.preprocess = preprocessing_block(in_channels)
         self.pool = nn.MaxPool2d(kernel_size=(2,2),stride=(2,2))
@@ -408,10 +408,10 @@ class hsi_unet_model_gelu(nn.Module):
 ###############################################################
 
 class unet_model_gelu_sensorfusion(nn.Module):
-    def __init__(self,out_channels=9):
+    def __init__(self. in_channels, out_channels=10):
         super(unet_model_gelu_sensorfusion,self).__init__()
         self.pool = nn.MaxPool2d(kernel_size=(2,2),stride=(2,2))
-        self.conv1 = encoding_block_gelu_2_conv(3, 64)
+        self.conv1 = encoding_block_gelu_2_conv(in_channels, 64)
         self.conv2 = encoding_block_gelu_2_conv(64, 128)
         self.conv3 = encoding_block_gelu_2_conv(128, 256)
         self.conv4 = encoding_block_gelu_2_conv(256, 512)
