@@ -94,6 +94,10 @@ sf_transformation = A.Compose([
     ToTensorV2()
 ])
 
+sf_no_transformation = A.Compose([
+    ToTensorV2()
+])
+
 ###############################################################
 ############ Custom Dataset and Preprocessing  ################
 ###############################################################
