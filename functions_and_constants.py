@@ -109,6 +109,14 @@ additional_targets={'image1':'image'}
 #replace mask values with smaller numbers
 def replace_np_values(np_array, defects_only):
 
+    value_to_replace = -1
+    new_value = 0
+    np_array[np_array == value_to_replace] = new_value 
+    
+    value_to_replace = 10
+    new_value = 0
+    np_array[np_array == value_to_replace] = new_value 
+    
     value_to_replace = 1
     new_value = 1
     np_array[np_array == value_to_replace] = new_value    
@@ -145,6 +153,10 @@ def replace_np_values(np_array, defects_only):
     new_value = 9
     np_array[np_array == value_to_replace] = new_value
 
+    value_to_replace = 512
+    new_value = 9
+    np_array[np_array == value_to_replace] = new_value
+    
     value_to_replace = 512
     new_value = 9
     np_array[np_array == value_to_replace] = new_value
