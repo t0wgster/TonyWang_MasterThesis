@@ -408,7 +408,7 @@ class hsi_unet_model_gelu(nn.Module):
 ###############################################################
 
 class unet_model_gelu_sensorfusion(nn.Module):
-    def __init__(self. in_channels_hsi, out_channels=10):
+    def __init__(self,in_channels_hsi, out_channels=10):
         super(unet_model_gelu_sensorfusion,self).__init__()
         self.pool = nn.MaxPool2d(kernel_size=(2,2),stride=(2,2))
         self.conv1_rgb = encoding_block_gelu_2_conv_init_hsi(3, 64)
