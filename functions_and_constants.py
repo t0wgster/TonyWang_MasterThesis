@@ -26,6 +26,74 @@ from torch.optim.lr_scheduler import StepLR, MultiStepLR, ReduceLROnPlateau, Exp
 from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix, f1_score
 import skimage.io as skio # lighter dependency than tensorflow for working with our tensors/arrays
 
+###########################################################
+#################### Augmentations ########################
+###########################################################
+
+transformation = A.Compose([
+    A.Resize(640,640),
+    A.RandomCrop(width=320, height=320),
+    A.RandomRotate90(p=0.5),
+    A.Rotate(limit=20, p=0.5, border_mode=cv2.BORDER_CONSTANT),
+    A.HorizontalFlip(p=0.5),
+    A.VerticalFlip(p=0.5),
+    A.RGBShift(r_shift_limit=(0,0.1), g_shift_limit=0, b_shift_limit=0, p=0.5),
+    #A.augmentations.transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5)),
+    #A.augmentations.transforms.Normalize(mean=img_mean, std=img_std),
+    ToTensorV2()
+])
+
+transformation_resize_img=A.Compose([
+    A.Resize(960,960),
+    #ToTensorV2()
+])
+
+transformation_inference=A.Compose([
+    A.Resize(320, 320),
+    ToTensorV2()
+])
+
+test_transformation = A.Compose([
+    A.Resize(320,320),
+    #A.augmentations.transforms.Normalize(mean=img_mean, std=img_std),
+    #A.augmentations.transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5)),
+    ToTensorV2()
+])
+
+hsi_mask_crop = A.Compose([
+    A.Crop(x_min=0, y_min=0, x_max=320, y_max=672)
+])
+
+hsi_transformation = A.Compose([
+    #A.Resize(640,640),
+    A.RandomCrop(width=224, height=224),
+    A.RandomRotate90(p=0.5),
+    A.Rotate(limit=20, p=0.5, border_mode=cv2.BORDER_CONSTANT),
+    #A.RandomBrightnessContrast(p=0.5, brightness_limit=(-0.1, 0.25), contrast_limit=(-0.1, 0.15), brightness_by_max=False),
+    A.HorizontalFlip(p=0.5),
+    A.VerticalFlip(p=0.5),
+    #A.RGBShift(r_shift_limit=(0,0.1), g_shift_limit=0, b_shift_limit=0, p=0.5),
+    #A.augmentations.transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5)),
+    #A.augmentations.transforms.Normalize(mean=img_mean, std=img_std),
+    ToTensorV2()
+])
+
+test_hsi_transformation = A.Compose([
+    #A.RGBShift(r_shift_limit=(0,0.1), g_shift_limit=0, b_shift_limit=0, p=0.5),
+    #A.augmentations.transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5)),
+    #A.augmentations.transforms.Normalize(mean=img_mean, std=img_std),
+    ToTensorV2()
+])
+
+sf_transformation = A.Compose([
+    A.RandomCrop(width=224, height=224),
+    A.RandomRotate90(p=0.5),
+    A.Rotate(limit=20, p=0.5, border_mode=cv2.BORDER_CONSTANT),
+    A.HorizontalFlip(p=0.5),
+    A.VerticalFlip(p=0.5),
+    ToTensorV2()
+])
+
 ###############################################################
 ############ Custom Dataset and Preprocessing  ################
 ###############################################################
@@ -236,74 +304,6 @@ class _WH_RGB_HSI_Dataset(Dataset):
                     i = i - 1
 
         return rgb_image_trans, hsi_image_trans, mask_trans
-
-###########################################################
-#################### Augmentations ########################
-###########################################################
-
-transformation = A.Compose([
-    A.Resize(640,640),
-    A.RandomCrop(width=320, height=320),
-    A.RandomRotate90(p=0.5),
-    A.Rotate(limit=20, p=0.5, border_mode=cv2.BORDER_CONSTANT),
-    A.HorizontalFlip(p=0.5),
-    A.VerticalFlip(p=0.5),
-    A.RGBShift(r_shift_limit=(0,0.1), g_shift_limit=0, b_shift_limit=0, p=0.5),
-    #A.augmentations.transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5)),
-    #A.augmentations.transforms.Normalize(mean=img_mean, std=img_std),
-    ToTensorV2()
-])
-
-transformation_resize_img=A.Compose([
-    A.Resize(960,960),
-    #ToTensorV2()
-])
-
-transformation_inference=A.Compose([
-    A.Resize(320, 320),
-    ToTensorV2()
-])
-
-test_transformation = A.Compose([
-    A.Resize(320,320),
-    #A.augmentations.transforms.Normalize(mean=img_mean, std=img_std),
-    #A.augmentations.transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5)),
-    ToTensorV2()
-])
-
-hsi_mask_crop = A.Compose([
-    A.Crop(x_min=0, y_min=0, x_max=320, y_max=672)
-])
-
-hsi_transformation = A.Compose([
-    #A.Resize(640,640),
-    A.RandomCrop(width=224, height=224),
-    A.RandomRotate90(p=0.5),
-    A.Rotate(limit=20, p=0.5, border_mode=cv2.BORDER_CONSTANT),
-    #A.RandomBrightnessContrast(p=0.5, brightness_limit=(-0.1, 0.25), contrast_limit=(-0.1, 0.15), brightness_by_max=False),
-    A.HorizontalFlip(p=0.5),
-    A.VerticalFlip(p=0.5),
-    #A.RGBShift(r_shift_limit=(0,0.1), g_shift_limit=0, b_shift_limit=0, p=0.5),
-    #A.augmentations.transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5)),
-    #A.augmentations.transforms.Normalize(mean=img_mean, std=img_std),
-    ToTensorV2()
-])
-
-test_hsi_transformation = A.Compose([
-    #A.RGBShift(r_shift_limit=(0,0.1), g_shift_limit=0, b_shift_limit=0, p=0.5),
-    #A.augmentations.transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5)),
-    #A.augmentations.transforms.Normalize(mean=img_mean, std=img_std),
-    ToTensorV2()
-])
-
-sf_transformation = A.Compose([
-    A.RandomCrop(width=224, height=224),
-    A.RandomRotate90(p=0.5),
-    A.Rotate(limit=20, p=0.5, border_mode=cv2.BORDER_CONSTANT),
-    A.HorizontalFlip(p=0.5),
-    A.VerticalFlip(p=0.5),
-    ToTensorV2()
-])
 
 #################################################
 ################  Constants  ####################
