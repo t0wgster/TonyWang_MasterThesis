@@ -27,6 +27,39 @@ class encoding_block(nn.Module):
     def forward(self, x):
         return self.conv(x) 
 
+class encoding_block_gelu_2_conv(nn.Module):
+    def __init__(self,in_channels, out_channels):
+        super(encoding_block_gelu_2_conv,self).__init__()
+        model = []
+        model.append(nn.Conv2d(in_channels, out_channels, 3, 1, 1, bias=False))
+        model.append(nn.BatchNorm2d(out_channels))
+        model.append(nn.GELU())
+        model.append(nn.Conv2d(out_channels, out_channels, 3, 1, 1, bias=False))
+        model.append(nn.BatchNorm2d(out_channels))
+        model.append(nn.GELU())
+        model.append(nn.Dropout(p=0.15))
+        self.conv = nn.Sequential(*model)
+    def forward(self, x):
+        return self.conv(x)  
+    
+class encoding_block_gelu_3_conv(nn.Module):
+    def __init__(self,in_channels, mid_channels, out_channels):
+        super(encoding_block_gelu_3_conv,self).__init__()
+        model = []
+        model.append(nn.Conv2d(in_channels, mid_channels, 3, 1, 1, bias=False))
+        model.append(nn.BatchNorm2d(mid_channels))
+        model.append(nn.GELU())
+        model.append(nn.Conv2d(mid_channels, out_channels, 3, 1, 1, bias=False))
+        model.append(nn.BatchNorm2d(out_channels))
+        model.append(nn.GELU())
+        model.append(nn.Conv2d(out_channels, out_channels, 3, 1, 1, bias=False))
+        model.append(nn.BatchNorm2d(out_channels))
+        model.append(nn.GELU())
+        model.append(nn.Dropout(p=0.15))
+        self.conv = nn.Sequential(*model)
+    def forward(self, x):
+        return self.conv(x)  
+
 class unet_model_classic(nn.Module):
     def __init__(self,out_channels,features=[64, 128, 256, 512]):
         super(unet_model_classic,self).__init__()
