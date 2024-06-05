@@ -276,13 +276,13 @@ class _WH_RGB_HSI_Dataset(Dataset):
         
         rgb_img_name=os.path.join(self.rgb_img_dir, self.rgb_images[idx])
         hsi_img_name=os.path.join(self.hsi_img_dir, self.hsi_images[idx])
-        mask_name=os.path.join(self.mask_dir, self.images[idx])
+        mask_name=os.path.join(self.mask_dir, self.hsi_images[idx])
 
         #read in RGB image as PIL
-        rgb_image=np.array(Image.open(img_name).convert('RGB'))/255
+        rgb_image=np.array(Image.open(rgb_img_name).convert('RGB'))/255
 
         #read in HSI image and mask as numpy
-        hsi_image=np.load(img_name).astype(np.float32)/4095 #care how many channels the HSI images have
+        hsi_image=np.load(hsi_img_name).astype(np.float32) #care how many channels the HSI images have
         mask = np.load(mask_name)
         
         #replace mask values with 0,1,2,3,4,5, etc.
