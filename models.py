@@ -408,10 +408,11 @@ class hsi_unet_model_gelu(nn.Module):
 ###############################################################
 
 class unet_model_gelu_sensorfusion(nn.Module):
-    def __init__(self. in_channels, out_channels=10):
+    def __init__(self. in_channels_hsi, out_channels=10):
         super(unet_model_gelu_sensorfusion,self).__init__()
         self.pool = nn.MaxPool2d(kernel_size=(2,2),stride=(2,2))
-        self.conv1 = encoding_block_gelu_2_conv(in_channels, 64)
+        self.conv1_rgb = encoding_block_gelu_2_conv_init_hsi(3, 64)
+        self.conv1_hsi = encoding_block_gelu_2_conv_init_hsi(in_channels_hsi, 64)
         self.conv2 = encoding_block_gelu_2_conv(64, 128)
         self.conv3 = encoding_block_gelu_2_conv(128, 256)
         self.conv4 = encoding_block_gelu_2_conv(256, 512)
@@ -432,7 +433,7 @@ class unet_model_gelu_sensorfusion(nn.Module):
         skip_connections_hsi = []
         
         #rgb downsampling
-        x_rgb = self.conv1(x_rgb) # 320, 320, 3 -> 320, 320, 64
+        x_rgb = self.conv1_rgb(x_rgb) # 320, 320, 3 -> 320, 320, 64
         skip_connections_rgb.append(x_rgb)
         x_rgb = self.pool(x_rgb)
         
@@ -452,7 +453,7 @@ class unet_model_gelu_sensorfusion(nn.Module):
         skip_connections_rgb = skip_connections_rgb[::-1] #reverses order of list
         
         #hsi downsampling
-        x_hsi = self.conv1(x_hsi) # 320, 320, 3 -> 320, 320, 64
+        x_hsi = self.conv1_hsi(x_hsi) # 320, 320, 3 -> 320, 320, 64
         skip_connections_hsi.append(x_hsi)
         x_hsi = self.pool(x_hsi)
         
