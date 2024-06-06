@@ -117,13 +117,13 @@ def replace_np_values(np_array, defects_only):
     new_value = 0
     np_array[np_array == value_to_replace] = new_value 
     
-    value_to_replace = 1
-    new_value = 1
-    np_array[np_array == value_to_replace] = new_value    
+    #value_to_replace = 1
+    #new_value = 1
+    #np_array[np_array == value_to_replace] = new_value    
 
-    value_to_replace = 2
-    new_value = 2
-    np_array[np_array == value_to_replace] = new_value
+    #value_to_replace = 2
+    #new_value = 2
+    #np_array[np_array == value_to_replace] = new_value
     
     value_to_replace = 4
     new_value = 3
