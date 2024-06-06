@@ -484,6 +484,7 @@ def sf_model_training_multiloss(model, train_loader, val_loader, num_epochs, ce_
             
             val_batch_loss = val_batch_loss + val_loss.item()
 
+        avg_val_loss = val_batch_loss / len(val_loader)
         print(f'Average Validation Batch Loss: {val_batch_loss/VAL_BATCH_SIZE:.4f}')        
         avg_val_loss_list.append(val_batch_loss/VAL_BATCH_SIZE)
         
@@ -610,21 +611,10 @@ def model_training_multiloss(model, train_loader, val_loader, num_epochs, ce_los
             train_loop.set_postfix(loss=loss.item())
             
             train_batch_loss = train_batch_loss + loss.item()
-            '''
-            for k in range(TRAIN_BATCH_SIZE):
-            
-                #calculate batch iou
-                pred_combined_mask=process_prediction_to_combined_mask(predictions)
-                
-                #batch iou
-                train_batch_iou=train_batch_iou+calculate_img_iou(iou_all_classes(pred_combined_mask[k,:,:], mask[k,:,:]))
-            '''
     
         #calculate average loss
         print(f'Average Train Batch Loss: {train_batch_loss/TRAIN_BATCH_SIZE:.4f}')
-        #print(f'Average Train Batch IoU: {train_batch_iou/TRAIN_BATCH_SIZE}')
         avg_train_loss_list.append(train_batch_loss/TRAIN_BATCH_SIZE)
-        #avg_train_iou_list.append(train_batch_iou/TRAIN_BATCH_SIZE)
         
         ####################################################
         ############## validation instance #################
@@ -651,17 +641,8 @@ def model_training_multiloss(model, train_loader, val_loader, num_epochs, ce_los
             val_loop.set_postfix(val_loss=val_loss.item())
             
             val_batch_loss = val_batch_loss + val_loss.item()
-        '''    
-            for k in range(VAL_BATCH_SIZE):
-            
-                #calculate batch iou
-                pred_combined_mask=process_prediction_to_combined_mask(predictions)
-                
-                #batch iou
-                val_batch_iou=val_batch_iou+calculate_img_iou(iou_all_classes(pred_combined_mask[k,:,:], mask[k,:,:]))
-                #print(f'Validation Batch IoU: {val_batch_iou}')
-            
-        '''
+
+        avg_val_loss = val_batch_loss / len(val_loader)
         print(f'Average Validation Batch Loss: {val_batch_loss/VAL_BATCH_SIZE:.4f}')        
         avg_val_loss_list.append(val_batch_loss/VAL_BATCH_SIZE)
         
@@ -824,19 +805,8 @@ def model_training(model, train_loader, val_loader, num_epochs, loss_fn, optimiz
     
             # update tqdm loop
             val_loop.set_postfix(val_loss=val_loss.item())
-            
             val_batch_loss = val_batch_loss + val_loss.item()
-        '''    
-            for k in range(VAL_BATCH_SIZE):
-            
-                #calculate batch iou
-                pred_combined_mask=process_prediction_to_combined_mask(predictions)
-                
-                #batch iou
-                val_batch_iou=val_batch_iou+calculate_img_iou(iou_all_classes(pred_combined_mask[k,:,:], mask[k,:,:]))
-                #print(f'Validation Batch IoU: {val_batch_iou}')
-            
-        '''
+
         print(f'Average Validation Batch Loss: {val_batch_loss/VAL_BATCH_SIZE:.4f}')
            
         avg_val_loss_list.append(val_batch_loss/VAL_BATCH_SIZE)
@@ -924,4 +894,14 @@ def load_model(model_type, optimizer, scaler, model_path):
     scaler.load_state_dict(checkpoint['scaler_state_dict'])
 
     return model
+
+#makes training etc. deterministic
+def seed_everything(seed=1234):
+    random.seed(seed)
+    os.environ['PYTHONHASHSEED'] = str(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.backends.cudnn.deterministic = True
+seed_everything()
 
