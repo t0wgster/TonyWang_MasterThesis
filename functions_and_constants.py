@@ -409,6 +409,9 @@ def sf_model_training_multiloss(model, train_loader, val_loader, num_epochs, ce_
     _today=datetime.today().strftime('%Y-%m-%d')
     print('Training beginning with following parameters:')
     print(f'No. Epochs: {num_epochs}')
+
+    #this is used for early stopping, value should be pretty large
+    best_val_loss = 1000
     
     #training with Cross Entropy Loss
     for epoch in range(num_epochs):
@@ -461,9 +464,7 @@ def sf_model_training_multiloss(model, train_loader, val_loader, num_epochs, ce_
     
         #calculate average loss
         print(f'Average Train Batch Loss: {train_batch_loss/TRAIN_BATCH_SIZE:.4f}')
-        #print(f'Average Train Batch IoU: {train_batch_iou/TRAIN_BATCH_SIZE}')
         avg_train_loss_list.append(train_batch_loss/TRAIN_BATCH_SIZE)
-        #avg_train_iou_list.append(train_batch_iou/TRAIN_BATCH_SIZE)
         
         ####################################################
         ############## validation instance #################
@@ -587,6 +588,8 @@ def model_training_multiloss(model, train_loader, val_loader, num_epochs, ce_los
                             avg_train_loss_list, avg_val_loss_list, TRAIN_BATCH_SIZE, VAL_BATCH_SIZE,
                              activate_scheduler=True, patience=15, model_name=''):
 
+    #this is used for early stopping, value should be pretty large
+    best_val_loss = 1000
     _today=datetime.today().strftime('%Y-%m-%d')
     print('Training beginning with following parameters:')
     print(f'No. Epochs: {num_epochs}')
