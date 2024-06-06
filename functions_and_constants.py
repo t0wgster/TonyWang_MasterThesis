@@ -483,17 +483,7 @@ def sf_model_training_multiloss(model, train_loader, val_loader, num_epochs, ce_
             val_loop.set_postfix(val_loss=val_loss.item())
             
             val_batch_loss = val_batch_loss + val_loss.item()
-        '''    
-            for k in range(VAL_BATCH_SIZE):
-            
-                #calculate batch iou
-                pred_combined_mask=process_prediction_to_combined_mask(predictions)
-                
-                #batch iou
-                val_batch_iou=val_batch_iou+calculate_img_iou(iou_all_classes(pred_combined_mask[k,:,:], mask[k,:,:]))
-                #print(f'Validation Batch IoU: {val_batch_iou}')
-            
-        '''
+
         print(f'Average Validation Batch Loss: {val_batch_loss/VAL_BATCH_SIZE:.4f}')        
         avg_val_loss_list.append(val_batch_loss/VAL_BATCH_SIZE)
         
@@ -543,23 +533,23 @@ def sf_model_training_multiloss(model, train_loader, val_loader, num_epochs, ce_
         ######################################################
         ################# early stopping #####################
         ######################################################
-
-        if avg_val_loss < best_val_loss:
-            best_val_loss = avg_val_loss
-            patience_counter = 0
-            # Save the best model
-            torch.save({
-                'epoch': epoch,
-                'model_state_dict': model.state_dict(),
-                'optimizer_state_dict': optimizer.state_dict(),
-                'loss': loss,
-                'scaler_state_dict': scaler.state_dict()
-            }, f'best_model_{_today}.pt')
-        else:
-            patience_counter += 1
-            if patience_counter >= patience:
-                print(f'Early stopping at epoch {epoch}')
-                break
+        if patience > 0:
+            if avg_val_loss < best_val_loss:
+                best_val_loss = avg_val_loss
+                patience_counter = 0
+                # Save the best model
+                torch.save({
+                    'epoch': epoch,
+                    'model_state_dict': model.state_dict(),
+                    'optimizer_state_dict': optimizer.state_dict(),
+                    'loss': loss,
+                    'scaler_state_dict': scaler.state_dict()
+                }, f'best_model_{_today}.pt')
+            else:
+                patience_counter += 1
+                if patience_counter >= patience:
+                    print(f'Early stopping at epoch {epoch}')
+                    break
 
         if epoch==50 or epoch==75 or epoch==(num_epochs-1):
             # Save all the elements to a file
@@ -722,22 +712,23 @@ def model_training_multiloss(model, train_loader, val_loader, num_epochs, ce_los
         ################# early stopping #####################
         ######################################################
 
-        if avg_val_loss < best_val_loss:
-            best_val_loss = avg_val_loss
-            patience_counter = 0
-            # Save the best model
-            torch.save({
-                'epoch': epoch,
-                'model_state_dict': model.state_dict(),
-                'optimizer_state_dict': optimizer.state_dict(),
-                'loss': loss,
-                'scaler_state_dict': scaler.state_dict()
-            }, f'best_model_{_today}.pt')
-        else:
-            patience_counter += 1
-            if patience_counter >= patience:
-                print(f'Early stopping at epoch {epoch}')
-                break
+        if patience > 0:
+            if avg_val_loss < best_val_loss:
+                best_val_loss = avg_val_loss
+                patience_counter = 0
+                # Save the best model
+                torch.save({
+                    'epoch': epoch,
+                    'model_state_dict': model.state_dict(),
+                    'optimizer_state_dict': optimizer.state_dict(),
+                    'loss': loss,
+                    'scaler_state_dict': scaler.state_dict()
+                }, f'best_model_{_today}.pt')
+            else:
+                patience_counter += 1
+                if patience_counter >= patience:
+                    print(f'Early stopping at epoch {epoch}')
+                    break
                 
         if epoch==50 or epoch==75 or epoch==(num_epochs-1):
             # Save all the elements to a file
