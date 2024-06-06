@@ -712,7 +712,7 @@ def model_training_multiloss(model, train_loader, val_loader, num_epochs, ce_los
         ################# early stopping #####################
         ######################################################
 
-        if patience > 0:
+        if patience > 0 and epoch>int(1/3*num_epochs):
             if avg_val_loss < best_val_loss:
                 best_val_loss = avg_val_loss
                 patience_counter = 0
