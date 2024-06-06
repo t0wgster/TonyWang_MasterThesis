@@ -440,9 +440,9 @@ class hsi_unet_model_gelu(nn.Module):
 ############### HSI/RGB UNET Feature Fusion ###################
 ###############################################################
 
-class unet_model_gelu_sensorfusion(nn.Module):
+class unet_model_gelu_feature_level_fusion(nn.Module):
     def __init__(self,in_channels_hsi, out_channels=10):
-        super(unet_model_gelu_sensorfusion,self).__init__()
+        super(unet_model_gelu_feature_level_fusion,self).__init__()
         self.pool = nn.MaxPool2d(kernel_size=(2,2),stride=(2,2))
         self.conv1_rgb = encoding_block_gelu_2_conv(3, 64)
         self.conv1_hsi = encoding_block_gelu_2_conv(in_channels_hsi, 64)
@@ -531,3 +531,53 @@ class unet_model_gelu_sensorfusion(nn.Module):
         x_comb = self.final_layer(x_comb)
         
         return x_comb
+
+class unet_model_gelu_data_level_fusion(nn.Module):
+    def __init__(self,in_channels_hsi, out_channels=10,features=[64, 128, 256, 512]):
+        super(unet_model_gelu_data_level_fusion,self).__init__()
+        self.pool = nn.MaxPool2d(kernel_size=(2,2),stride=(2,2))
+        self.conv1 = encoding_block_gelu(3+in_channels_hsi,features[0])
+        self.conv2 = encoding_block_gelu(features[0],features[1])
+        self.conv3 = encoding_block_gelu(features[1],features[2])
+        self.conv4 = encoding_block_gelu(features[2],features[3])
+        self.conv5 = encoding_block_gelu(features[3]*2,features[3])
+        self.conv6 = encoding_block_gelu(features[3],features[2])
+        self.conv7 = encoding_block_gelu(features[2],features[1])
+        self.conv8 = encoding_block_gelu(features[1],features[0])        
+        self.tconv1 = nn.ConvTranspose2d(features[-1]*2, features[-1], kernel_size=2, stride=2)
+        self.tconv2 = nn.ConvTranspose2d(features[-1], features[-2], kernel_size=2, stride=2)
+        self.tconv3 = nn.ConvTranspose2d(features[-2], features[-3], kernel_size=2, stride=2)
+        self.tconv4 = nn.ConvTranspose2d(features[-3], features[-4], kernel_size=2, stride=2)        
+        self.bottleneck = encoding_block_gelu(features[3],features[3]*2)
+        self.final_layer = nn.Conv2d(features[0],out_channels,kernel_size=1)
+    def forward(self,x_rgb, x_hsi):
+        x = torch.cat(x_rgb, x_hsi, dim=1)
+        skip_connections = []
+        x = self.conv1(x)
+        skip_connections.append(x)
+        x = self.pool(x)
+        x = self.conv2(x)
+        skip_connections.append(x)
+        x = self.pool(x)
+        x = self.conv3(x)
+        skip_connections.append(x)
+        x = self.pool(x)
+        x = self.conv4(x)
+        skip_connections.append(x)
+        x = self.pool(x)
+        x = self.bottleneck(x)
+        skip_connections = skip_connections[::-1]
+        x = self.tconv1(x)
+        x = torch.cat((skip_connections[0], x), dim=1)
+        x = self.conv5(x)
+        x = self.tconv2(x)
+        x = torch.cat((skip_connections[1], x), dim=1)
+        x = self.conv6(x)
+        x = self.tconv3(x)
+        x = torch.cat((skip_connections[2], x), dim=1)
+        x = self.conv7(x)        
+        x = self.tconv4(x)
+        x = torch.cat((skip_connections[3], x), dim=1)
+        x = self.conv8(x)
+        x = self.final_layer(x)
+        return x
