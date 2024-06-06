@@ -555,7 +555,7 @@ def calculate_model_metrics(test_ds_intersection,
                             test_ds_union, 
                             test_ds_numerator, 
                             test_ds_denominator,
-                            defects_only):
+                            defects_only, file_name=''):
 
     iou_dict = {}
     dice_dict = {}
@@ -589,7 +589,7 @@ def calculate_model_metrics(test_ds_intersection,
 
 
 
-    with open('model_metrics.txt', 'w') as file:
+    with open(f'model_metrics_{file_name}.txt', 'w') as file:
 
         file.write('All:\n')
         for key, value in other_dict.items():
