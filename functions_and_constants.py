@@ -107,7 +107,7 @@ additional_targets={'image1':'image'}
 ###############################################################
 
 #replace mask values with smaller numbers
-def replace_np_values(np_array, defects_only):
+def replace_np_values(np_array, defects_only=False):
 
     value_to_replace = -1
     new_value = 0
@@ -306,7 +306,7 @@ class _WH_RGB_HSI_Dataset(Dataset):
         mask = np.load(mask_name)
         
         #replace mask values with 0,1,2,3,4,5, etc.
-        replace_np_values(mask, defects_only=True)
+        replace_np_values(mask, defects_only=False)
 
 
         #loops around to find transformed images with defects, after 7 loops it just takes whatever it finds
