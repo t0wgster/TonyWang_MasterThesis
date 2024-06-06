@@ -553,6 +553,11 @@ def calculate_model_metrics(test_ds_intersection,
                             test_ds_denominator,
                             defects_only):
 
+    iou_dict = {}
+    dice_dict = {}
+    
+    
+
     if defects_only:
         print('Average IoU over entire Test Dataset: '+f'{np.sum(np.array(test_ds_intersection[3:]))/(np.sum(np.array(test_ds_union)[3:])+1e-06):.4f}')
         print('Average Dice Score over entire Test Dataset: '+f'{np.sum(np.array(test_ds_numerator[3:]))/(np.sum(np.array(test_ds_denominator[3:]))+1e-06):.4f}')
@@ -564,13 +569,28 @@ def calculate_model_metrics(test_ds_intersection,
     print('--Class Average IoU--')
     for i in range(len(CLASSES_LONG)):
 
+        iou_value = test_ds_intersection[i] / (test_ds_union[i] + 1e-06)
         print(f'{CLASSES_LONG[i]}: {test_ds_intersection[i]/(test_ds_union[i]+1e-06):.4f}')
+        iou_dict[CLASSES_LONG[i]] = iou_value
 
     print('--Class Average Dice Score--')
 
     for i in range(len(CLASSES_LONG)):
 
+        dice_value = test_ds_numerator[i] / (test_ds_denominator[i] + 1e-06)
         print(f'{CLASSES_LONG[i]}: {test_ds_numerator[i]/(test_ds_denominator[i]+1e-06):.4f}')
+        dice_dict[CLASSES_LONG[i]] = dice_value
+
+    with open('model_metrics.txt', 'w') as file:
+        file.write('Class Average IoU:\n')
+        for key, value in iou_dict.items():
+            file.write(f'{key}: {value:.4f}\n')
+
+        file.write('\nClass Average Dice Score:\n')
+        for key, value in dice_dict.items():
+            file.write(f'{key}: {value:.4f}\n')
+
+    
 
 
 def intersection_and_union_all_classes(truth_mask, pred_mask, N_CLASS=N_CLASSES, SINGLE_PREDICTION=False):
