@@ -567,7 +567,11 @@ def calculate_model_metrics(test_ds_intersection,
     print('Average IoU (Entire Image) over entire Test Dataset: '+f'{np.sum(np.array(test_ds_intersection))/(np.sum(np.array(test_ds_union))+1e-06):.4f}')
     print('Average Dice Score (Entire Image) over entire Test Dataset: '+f'{np.sum(np.array(test_ds_numerator))/(np.sum(np.array(test_ds_denominator))+1e-06):.4f}')
 
-    other_dict['Avg_IoU_defects_only']
+    other_dict['Avg_IoU_defects_only'] = np.sum(np.array(test_ds_intersection[3:]))/(np.sum(np.array(test_ds_union)[3:])+1e-06)
+    other_dict['Avg_Dice_defects_only'] = np.sum(np.array(test_ds_numerator[3:]))/(np.sum(np.array(test_ds_denominator[3:]))+1e-06)
+    other_dict['Avg_IoU_entire_img'] = np.sum(np.array(test_ds_intersection))/(np.sum(np.array(test_ds_union))+1e-06)
+    other_dict['Avg_Dice_entire_img'] = np.sum(np.array(test_ds_numerator))/(np.sum(np.array(test_ds_denominator))+1e-06)
+
 
     print('--Class Average IoU--')
     for i in range(len(CLASSES_LONG)):
@@ -583,16 +587,21 @@ def calculate_model_metrics(test_ds_intersection,
         print(f'{CLASSES_LONG[i]}: {test_ds_numerator[i]/(test_ds_denominator[i]+1e-06):.4f}')
         dice_dict[CLASSES_LONG[i]] = dice_value
 
+
+
     with open('model_metrics.txt', 'w') as file:
-        file.write('Class Average IoU:\n')
+
+        file.write('All:\n')
+        for key, value in other_dict.items():
+            file.write(f'{key}: {value:.4f}\n')
+
+        file.write('\nClass Average IoU:\n')
         for key, value in iou_dict.items():
             file.write(f'{key}: {value:.4f}\n')
 
         file.write('\nClass Average Dice Score:\n')
         for key, value in dice_dict.items():
             file.write(f'{key}: {value:.4f}\n')
-
-    
 
 
 def intersection_and_union_all_classes(truth_mask, pred_mask, N_CLASS=N_CLASSES, SINGLE_PREDICTION=False):
