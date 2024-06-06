@@ -395,7 +395,7 @@ class DiceLoss(nn.Module):
 # sensor fusion model training with two possible loss functions
 def sf_model_training_multiloss(model, train_loader, val_loader, num_epochs, ce_loss_fn, dice_loss_fn, optimizer, scaler, scheduler, 
                             avg_train_loss_list, avg_val_loss_list, TRAIN_BATCH_SIZE, VAL_BATCH_SIZE,
-                             activate_scheduler=True,):
+                             activate_scheduler=True, patience=15):
 
     _today=datetime.today().strftime('%Y-%m-%d')
     print('Training beginning with following parameters:')
@@ -540,23 +540,27 @@ def sf_model_training_multiloss(model, train_loader, val_loader, num_epochs, ce_
             plt.grid(True)
             plt.show()
             
-            ###
-            # IoU
-            ###
-            
-            '''
-            axs[1].plot(range(avg_train_iou_list), avg_train_iou_list, marker='o', linestyle='-', label='Training IoU', color='blue')
-            axs[1].plot(range(avg_val_iou_list), avg_val_iou_list, marker='o', linestyle='-', label='Validation IoU', color='orange')
-            
-            # Add labels and title
-            axs[1].xlabel('Epochs')
-            axs[1].ylabel('Loss')
-            axs[1].title('Training vs Validation IoU')        
-            
-            plt.legend()
-            plt.grid(True)
-            plt.show()
-            '''
+        ######################################################
+        ################# early stopping #####################
+        ######################################################
+
+        if avg_val_loss < best_val_loss:
+            best_val_loss = avg_val_loss
+            patience_counter = 0
+            # Save the best model
+            torch.save({
+                'epoch': epoch,
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                'loss': loss,
+                'scaler_state_dict': scaler.state_dict()
+            }, f'best_model_{_today}.pt')
+        else:
+            patience_counter += 1
+            if patience_counter >= patience:
+                print(f'Early stopping at epoch {epoch}')
+                break
+
         if epoch==50 or epoch==75 or epoch==(num_epochs-1):
             # Save all the elements to a file
             torch.save({
@@ -572,7 +576,7 @@ def sf_model_training_multiloss(model, train_loader, val_loader, num_epochs, ce_
 # model training with two possible loss functions
 def model_training_multiloss(model, train_loader, val_loader, num_epochs, ce_loss_fn, dice_loss_fn, optimizer, scaler, scheduler, 
                             avg_train_loss_list, avg_val_loss_list, TRAIN_BATCH_SIZE, VAL_BATCH_SIZE,
-                             activate_scheduler=True,):
+                             activate_scheduler=True, patience=15):
 
     _today=datetime.today().strftime('%Y-%m-%d')
     print('Training beginning with following parameters:')
@@ -714,23 +718,27 @@ def model_training_multiloss(model, train_loader, val_loader, num_epochs, ce_los
             plt.grid(True)
             plt.show()
             
-            ###
-            # IoU
-            ###
-            
-            '''
-            axs[1].plot(range(avg_train_iou_list), avg_train_iou_list, marker='o', linestyle='-', label='Training IoU', color='blue')
-            axs[1].plot(range(avg_val_iou_list), avg_val_iou_list, marker='o', linestyle='-', label='Validation IoU', color='orange')
-            
-            # Add labels and title
-            axs[1].xlabel('Epochs')
-            axs[1].ylabel('Loss')
-            axs[1].title('Training vs Validation IoU')        
-            
-            plt.legend()
-            plt.grid(True)
-            plt.show()
-            '''
+        ######################################################
+        ################# early stopping #####################
+        ######################################################
+
+        if avg_val_loss < best_val_loss:
+            best_val_loss = avg_val_loss
+            patience_counter = 0
+            # Save the best model
+            torch.save({
+                'epoch': epoch,
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                'loss': loss,
+                'scaler_state_dict': scaler.state_dict()
+            }, f'best_model_{_today}.pt')
+        else:
+            patience_counter += 1
+            if patience_counter >= patience:
+                print(f'Early stopping at epoch {epoch}')
+                break
+                
         if epoch==50 or epoch==75 or epoch==(num_epochs-1):
             # Save all the elements to a file
             torch.save({
