@@ -551,7 +551,7 @@ class unet_model_gelu_data_level_fusion(nn.Module):
         self.bottleneck = encoding_block_gelu(features[3],features[3]*2)
         self.final_layer = nn.Conv2d(features[0],out_channels,kernel_size=1)
     def forward(self,x_rgb, x_hsi):
-        x = torch.cat(x_rgb, x_hsi, dim=1)
+        x = torch.cat((x_rgb, x_hsi,), dim=1)
         skip_connections = []
         x = self.conv1(x)
         skip_connections.append(x)
