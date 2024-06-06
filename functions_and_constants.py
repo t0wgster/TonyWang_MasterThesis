@@ -392,10 +392,18 @@ class DiceLoss(nn.Module):
             loss += dice * weight[i]
         return loss / self.n_classes
 
+###################################################################################
+
+        ###############################################################
+        ############### sensor fusion model training ##################
+        ###############################################################
+
+###################################################################################
+
 # sensor fusion model training with two possible loss functions
 def sf_model_training_multiloss(model, train_loader, val_loader, num_epochs, ce_loss_fn, dice_loss_fn, optimizer, scaler, scheduler, 
                             avg_train_loss_list, avg_val_loss_list, TRAIN_BATCH_SIZE, VAL_BATCH_SIZE,
-                             activate_scheduler=True, patience=15):
+                             activate_scheduler=True, patience=15, model_name=''):
 
     _today=datetime.today().strftime('%Y-%m-%d')
     print('Training beginning with following parameters:')
@@ -545,7 +553,7 @@ def sf_model_training_multiloss(model, train_loader, val_loader, num_epochs, ce_
                     'optimizer_state_dict': optimizer.state_dict(),
                     'loss': loss,
                     'scaler_state_dict': scaler.state_dict()
-                }, f'best_model_{_today}.pt')
+                }, f'best_model_{_today}_{model_name}.pt')
             else:
                 patience_counter += 1
                 if patience_counter >= patience:
@@ -560,14 +568,23 @@ def sf_model_training_multiloss(model, train_loader, val_loader, num_epochs, ce_
                 'optimizer_state_dict': optimizer.state_dict(),
                 'loss': loss,
                 'scaler_state_dict': scaler.state_dict()
-            }, f'model_e{epoch}_{_today}.pt')
+            }, f'model_e{epoch}_{_today}_{model_name}.pt')
             
     return model, loss, avg_train_loss_list, avg_val_loss_list
+
+
+###################################################################################
+
+        ###############################################################
+        ################### regular model training ####################
+        ###############################################################
+
+###################################################################################
 
 # model training with two possible loss functions
 def model_training_multiloss(model, train_loader, val_loader, num_epochs, ce_loss_fn, dice_loss_fn, optimizer, scaler, scheduler, 
                             avg_train_loss_list, avg_val_loss_list, TRAIN_BATCH_SIZE, VAL_BATCH_SIZE,
-                             activate_scheduler=True, patience=15):
+                             activate_scheduler=True, patience=15, model_name=''):
 
     _today=datetime.today().strftime('%Y-%m-%d')
     print('Training beginning with following parameters:')
@@ -704,7 +721,7 @@ def model_training_multiloss(model, train_loader, val_loader, num_epochs, ce_los
                     'optimizer_state_dict': optimizer.state_dict(),
                     'loss': loss,
                     'scaler_state_dict': scaler.state_dict()
-                }, f'best_model_{_today}.pt')
+                }, f'best_model_{_today}_{model_name}.pt')
             else:
                 patience_counter += 1
                 if patience_counter >= patience:
@@ -719,10 +736,17 @@ def model_training_multiloss(model, train_loader, val_loader, num_epochs, ce_los
                 'optimizer_state_dict': optimizer.state_dict(),
                 'loss': loss,
                 'scaler_state_dict': scaler.state_dict()
-            }, f'model_e{epoch}_{_today}.pt')
+            }, f'model_e{epoch}_{_today}_{model_name}.pt')
             
     return model, loss, avg_train_loss_list, avg_val_loss_list
 
+###################################################################################
+
+        ###############################################################
+        ################### regular model training ####################
+        ###############################################################
+
+###################################################################################
 
 # model training with one loss function
 def model_training(model, train_loader, val_loader, num_epochs, loss_fn, optimizer, scaler, scheduler, 
