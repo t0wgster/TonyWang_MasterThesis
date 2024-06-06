@@ -555,16 +555,15 @@ def calculate_model_metrics(test_ds_intersection,
 
     iou_dict = {}
     dice_dict = {}
-    
-    
+    other_dict = {}
 
-    if defects_only:
-        print('Average IoU over entire Test Dataset: '+f'{np.sum(np.array(test_ds_intersection[3:]))/(np.sum(np.array(test_ds_union)[3:])+1e-06):.4f}')
-        print('Average Dice Score over entire Test Dataset: '+f'{np.sum(np.array(test_ds_numerator[3:]))/(np.sum(np.array(test_ds_denominator[3:]))+1e-06):.4f}')
 
-    else:
-        print('Average IoU over entire Test Dataset: '+f'{np.sum(np.array(test_ds_intersection))/(np.sum(np.array(test_ds_union))+1e-06):.4f}')
-        print('Average Dice Score over entire Test Dataset: '+f'{np.sum(np.array(test_ds_numerator))/(np.sum(np.array(test_ds_denominator))+1e-06):.4f}')
+    print('Average IoU (Defects Only) over entire Test Dataset: '+f'{np.sum(np.array(test_ds_intersection[3:]))/(np.sum(np.array(test_ds_union)[3:])+1e-06):.4f}')
+    print('Average Dice Score (Defects Only) over entire Test Dataset: '+f'{np.sum(np.array(test_ds_numerator[3:]))/(np.sum(np.array(test_ds_denominator[3:]))+1e-06):.4f}')
+    print('Average IoU (Entire Image) over entire Test Dataset: '+f'{np.sum(np.array(test_ds_intersection))/(np.sum(np.array(test_ds_union))+1e-06):.4f}')
+    print('Average Dice Score (Entire Image) over entire Test Dataset: '+f'{np.sum(np.array(test_ds_numerator))/(np.sum(np.array(test_ds_denominator))+1e-06):.4f}')
+
+    other_dict['Avg_IoU_defects_only']
 
     print('--Class Average IoU--')
     for i in range(len(CLASSES_LONG)):
@@ -574,7 +573,6 @@ def calculate_model_metrics(test_ds_intersection,
         iou_dict[CLASSES_LONG[i]] = iou_value
 
     print('--Class Average Dice Score--')
-
     for i in range(len(CLASSES_LONG)):
 
         dice_value = test_ds_numerator[i] / (test_ds_denominator[i] + 1e-06)
