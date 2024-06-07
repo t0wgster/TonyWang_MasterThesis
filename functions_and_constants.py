@@ -332,6 +332,7 @@ class _WH_RGB_HSI_Dataset(Dataset):
 
 print(torch.cuda.is_available())
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+_today=datetime.today().strftime('%Y-%m-%d')
 
 #color values for complete classes
 NUM_UNIQUE_VALUES_LONG = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
