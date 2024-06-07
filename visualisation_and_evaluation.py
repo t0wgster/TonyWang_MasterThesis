@@ -650,9 +650,13 @@ def dice_values_all_classes(truth_mask, pred_mask, N_CLASS=N_CLASSES, print_dice
     return numinator_list, denominator_list
 
 def calculate_model_inference_time(model, batch, data_source):
+    
+    model = model.to(DEVICE)
 
-    #here implement division by batch size
+    # Here implement division by batch size
     rgb_img, hsi_img, mask = next(iter(batch))
+    rgb_img = rgb_img.to(DEVICE)
+    hsi_img = hsi_img.to(DEVICE)
     model.eval()
     with torch.no_grad():
         start_time = time.time()
