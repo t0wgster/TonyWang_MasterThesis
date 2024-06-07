@@ -755,9 +755,11 @@ def model_training_multiloss(model, train_loader, val_loader, num_epochs, ce_los
 
 # model training with one loss function
 def model_training(model, train_loader, val_loader, num_epochs, loss_fn, optimizer, scaler, scheduler, 
-                   avg_train_loss_list, avg_val_loss_list,
-                   TRAIN_BATCH_SIZE, VAL_BATCH_SIZE,
-                   activate_scheduler=False):
+                            avg_train_loss_list, avg_val_loss_list, TRAIN_BATCH_SIZE, VAL_BATCH_SIZE,
+                            activate_scheduler=True, patience=15, model_name=''):
+
+    #this is used for early stopping, value should be pretty large
+    best_val_loss = 1000
     _today=datetime.today().strftime('%Y-%m-%d')
     print('Training beginning with following parameters:')
     print(f'No. Epochs: {num_epochs}')
@@ -787,6 +789,7 @@ def model_training(model, train_loader, val_loader, num_epochs, loss_fn, optimiz
             with torch.cuda.amp.autocast():
                 predictions = model(img.float())
                 loss = loss_fn(predictions, mask)
+
                 
             # backward
             optimizer.zero_grad()
@@ -798,21 +801,10 @@ def model_training(model, train_loader, val_loader, num_epochs, loss_fn, optimiz
             train_loop.set_postfix(loss=loss.item())
             
             train_batch_loss = train_batch_loss + loss.item()
-            '''
-            for k in range(TRAIN_BATCH_SIZE):
-            
-                #calculate batch iou
-                pred_combined_mask=process_prediction_to_combined_mask(predictions)
-                
-                #batch iou
-                train_batch_iou=train_batch_iou+calculate_img_iou(iou_all_classes(pred_combined_mask[k,:,:], mask[k,:,:]))
-            '''
     
         #calculate average loss
         print(f'Average Train Batch Loss: {train_batch_loss/TRAIN_BATCH_SIZE:.4f}')
-        #print(f'Average Train Batch IoU: {train_batch_iou/TRAIN_BATCH_SIZE}')
         avg_train_loss_list.append(train_batch_loss/TRAIN_BATCH_SIZE)
-        #avg_train_iou_list.append(train_batch_iou/TRAIN_BATCH_SIZE)
         
         ####################################################
         ############## validation instance #################
@@ -825,21 +817,22 @@ def model_training(model, train_loader, val_loader, num_epochs, loss_fn, optimiz
             with torch.no_grad():
                 img = img.to(DEVICE)
                 mask = mask.to(DEVICE)
-                #mask = mask
+                mask = mask.type(torch.long)
             
                 # forward
                 with torch.cuda.amp.autocast():
                     predictions = model(img.float())
-                    val_loss = loss_fn(predictions, mask.type(torch.long))
+                    val_loss = loss_fn(predictions, mask)
+
     
             # update tqdm loop
             val_loop.set_postfix(val_loss=val_loss.item())
+            
             val_batch_loss = val_batch_loss + val_loss.item()
 
-        print(f'Average Validation Batch Loss: {val_batch_loss/VAL_BATCH_SIZE:.4f}')
-           
+        avg_val_loss = val_batch_loss / len(val_loader)
+        print(f'Average Validation Batch Loss: {val_batch_loss/VAL_BATCH_SIZE:.4f}')        
         avg_val_loss_list.append(val_batch_loss/VAL_BATCH_SIZE)
-
         
         #######################################################
         ############### adjust learning rate ##################
@@ -884,23 +877,28 @@ def model_training(model, train_loader, val_loader, num_epochs, loss_fn, optimiz
             plt.grid(True)
             plt.show()
             
-            ###
-            # IoU
-            ###
-            
-            '''
-            axs[1].plot(range(avg_train_iou_list), avg_train_iou_list, marker='o', linestyle='-', label='Training IoU', color='blue')
-            axs[1].plot(range(avg_val_iou_list), avg_val_iou_list, marker='o', linestyle='-', label='Validation IoU', color='orange')
-            
-            # Add labels and title
-            axs[1].xlabel('Epochs')
-            axs[1].ylabel('Loss')
-            axs[1].title('Training vs Validation IoU')        
-            
-            plt.legend()
-            plt.grid(True)
-            plt.show()
-            '''
+        ######################################################
+        ################# early stopping #####################
+        ######################################################
+
+        if patience > 0 and epoch>int(1/3*num_epochs):
+            if avg_val_loss < best_val_loss:
+                best_val_loss = avg_val_loss
+                patience_counter = 0
+                # Save the best model
+                torch.save({
+                    'epoch': epoch,
+                    'model_state_dict': model.state_dict(),
+                    'optimizer_state_dict': optimizer.state_dict(),
+                    'loss': loss,
+                    'scaler_state_dict': scaler.state_dict()
+                }, f'best_model_{_today}_{model_name}.pt')
+            else:
+                patience_counter += 1
+                if patience_counter >= patience:
+                    print(f'Early stopping at epoch {epoch}')
+                    break
+                
         if epoch==50 or epoch==75 or epoch==(num_epochs-1):
             # Save all the elements to a file
             torch.save({
@@ -909,7 +907,7 @@ def model_training(model, train_loader, val_loader, num_epochs, loss_fn, optimiz
                 'optimizer_state_dict': optimizer.state_dict(),
                 'loss': loss,
                 'scaler_state_dict': scaler.state_dict()
-            }, f'model_e{epoch}_{_today}.pt')
+            }, f'model_e{epoch}_{_today}_{model_name}.pt')
             
     return model, loss, avg_train_loss_list, avg_val_loss_list
 
