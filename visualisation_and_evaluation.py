@@ -421,7 +421,7 @@ def capture_model_metrics_pixelwise_and_confusion_matrix_sf(model, test_dataset_
 
             # model prediction
             if data_source=='rgb' or data_source=='hsi':
-                img,  mask = batch
+                img, _,  mask = batch
                 img = img.to(DEVICE).unsqueeze(0)
                 mask = mask.to(DEVICE)
 
@@ -434,7 +434,6 @@ def capture_model_metrics_pixelwise_and_confusion_matrix_sf(model, test_dataset_
 
                 rgb_img = rgb_img.to(DEVICE).unsqueeze(0)
                 hsi_img = hsi_img.to(DEVICE).unsqueeze(0)
-
                 mask = mask.to(DEVICE)
 
                 softmax = nn.Softmax(dim=1)
