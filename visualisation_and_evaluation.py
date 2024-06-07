@@ -512,6 +512,8 @@ def capture_model_metrics_pixelwise_and_confusion_matrix_sf(model, test_dataset_
             gt_flat = ground_truth_all_images.flatten()
             prediction_flat = prediction_all_images.flatten()
 
+            prediction_flat[0] = 8
+
             print(gt_flat.shape)
             print(prediction_flat.shape)
             print(CLASSES_LONG_9)
