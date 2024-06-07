@@ -610,7 +610,7 @@ def model_training_multiloss(model, train_loader, val_loader, num_epochs, ce_los
         
         model.train()
         train_loop = tqdm(enumerate(train_loader),total=len(train_loader))
-        for batch_idx, (img, mask) in train_loop:
+        for batch_idx, (img, _, mask) in train_loop:
             
             img = img.to(DEVICE)
             mask = mask.to(DEVICE)
@@ -644,7 +644,7 @@ def model_training_multiloss(model, train_loader, val_loader, num_epochs, ce_los
         
         model.eval()
         val_loop = tqdm(enumerate(val_loader),total=len(val_loader))
-        for batch_idx, (img, mask) in val_loop:
+        for batch_idx, (img, _, mask) in val_loop:
             
             with torch.no_grad():
                 img = img.to(DEVICE)
@@ -779,7 +779,7 @@ def model_training(model, train_loader, val_loader, num_epochs, loss_fn, optimiz
         
         model.train()
         train_loop = tqdm(enumerate(train_loader),total=len(train_loader))
-        for batch_idx, (img, mask) in train_loop:
+        for batch_idx, (img, _, mask) in train_loop:
             
             img = img.to(DEVICE)
             mask = mask.to(DEVICE)
@@ -812,7 +812,7 @@ def model_training(model, train_loader, val_loader, num_epochs, loss_fn, optimiz
         
         model.eval()
         val_loop = tqdm(enumerate(val_loader),total=len(val_loader))
-        for batch_idx, (img, mask) in val_loop:
+        for batch_idx, (img, _, mask) in val_loop:
             
             with torch.no_grad():
                 img = img.to(DEVICE)
