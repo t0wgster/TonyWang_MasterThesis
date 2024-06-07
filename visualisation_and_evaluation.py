@@ -520,7 +520,7 @@ def capture_model_metrics_pixelwise_and_confusion_matrix_sf(model, test_dataset_
 
             fig, ax = plt.subplots(figsize=(10, 8))
 
-            conf=ConfusionMatrixDisplay.from_predictions(gt_flat, prediction_flat, display_labels=CLASSES_LONG_9, normalize=norm_mode, 
+            conf=ConfusionMatrixDisplay.from_predictions(gt_flat, prediction_flat, display_labels=CLASSES_LONG, normalize=norm_mode, 
                                                          ax=ax, xticks_rotation='vertical')
 
             plt.show()
