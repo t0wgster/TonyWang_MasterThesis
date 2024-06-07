@@ -662,7 +662,7 @@ def calculate_model_inference_time(model, batch, data_source):
         start_time = time.time()
 
         if data_source == 'sf':
-            _ = model(rgb_img, hsi_img)
+            _ = model(rgb_img.float(), hsi_img)
             end_time = time.time()
 
         elif data_source == 'rgb' or data_source == 'hsi':
@@ -673,5 +673,4 @@ def calculate_model_inference_time(model, batch, data_source):
     print(inference_time)
 
     return inference_time
-        
     
