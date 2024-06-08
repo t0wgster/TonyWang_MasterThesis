@@ -6,6 +6,7 @@ import cv2
 from matplotlib.colors import ListedColormap, BoundaryNorm
 from datetime import datetime
 import random
+import copy
 
 #augmentation
 from albumentations.pytorch import ToTensorV2
