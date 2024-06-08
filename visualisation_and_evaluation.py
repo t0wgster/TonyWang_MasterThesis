@@ -419,18 +419,26 @@ def capture_model_metrics_pixelwise_and_confusion_matrix_sf(model, test_dataset_
 
         for n, batch in enumerate(test_dataset_final):
 
+            rgb_img, hsi_img, mask = batch
+
             # model prediction
-            if data_source=='rgb' or data_source=='hsi':
-                img, _,  mask = batch
-                img = img.to(DEVICE).unsqueeze(0)
+            if data_source=='rgb'
+                rgb_img = rgb_img.to(DEVICE).unsqueeze(0)
                 mask = mask.to(DEVICE)
 
                 softmax = nn.Softmax(dim=1)
 
-                preds = torch.argmax(softmax(model(img.float())),axis=1).to('cpu').squeeze(0)
+                preds = torch.argmax(softmax(model(rgb_img.float())),axis=1).to('cpu').squeeze(0)
+
+            if data_source=='hsi'
+                hsi_img = hsi_img.to(DEVICE).unsqueeze(0)
+                mask = mask.to(DEVICE)
+
+                softmax = nn.Softmax(dim=1)
+
+                preds = torch.argmax(softmax(model(hsi_img.float())),axis=1).to('cpu').squeeze(0)
 
             elif data_source=='sf':
-                rgb_img, hsi_img, mask = batch
 
                 rgb_img = rgb_img.to(DEVICE).unsqueeze(0)
                 hsi_img = hsi_img.to(DEVICE).unsqueeze(0)
@@ -439,11 +447,6 @@ def capture_model_metrics_pixelwise_and_confusion_matrix_sf(model, test_dataset_
                 softmax = nn.Softmax(dim=1)
 
                 preds = torch.argmax(softmax(model(rgb_img.float(), hsi_img)),axis=1).to('cpu').squeeze(0)
-
-                #print(rgb_img.shape)
-                #print(hsi_img.shape)
-                #print(mask.shape)
-                #print(preds.shape)
 
             # convert torch tensor to numpy array
             prediction_all_images[:,:,n] = preds.numpy()
@@ -454,11 +457,15 @@ def capture_model_metrics_pixelwise_and_confusion_matrix_sf(model, test_dataset_
             n_list, d_list=dice_values_all_classes(mask, preds, SINGLE_PREDICTION=True)
 
 
-            if visualize == True:
-                if data_source=='rgb' or data_source=='hsi':
-                    visualize_prediction_vs_ground_truth_overlay_all_sources(img.squeeze(0), None, mask, preds.squeeze(0), data_source)
-                elif data_source=='sf':
-                    visualize_prediction_vs_ground_truth_overlay_all_sources(rgb_img.squeeze(0), hsi_img.squeeze(0), mask, preds.squeeze(0), data_source)
+            #if visualize == True:
+            #    if data_source=='rgb':
+            #        visualize_prediction_vs_ground_truth_overlay_all_sources(rgb_img.squeeze(0), None, mask, preds.squeeze(0), data_source)
+            #    if data_source=='hsi':
+            #        visualize_prediction_vs_ground_truth_overlay_all_sources(rgb_img.squeeze(0), hsi_img.squeeze(0), mask, preds.squeeze(0), data_source)
+            #    elif data_source=='sf':
+            #        visualize_prediction_vs_ground_truth_overlay_all_sources(rgb_img.squeeze(0), hsi_img.squeeze(0), mask, preds.squeeze(0), data_source)
+
+            visualize_prediction_vs_ground_truth_overlay_all_sources(rgb_img.squeeze(0), hsi_img.squeeze(0), mask, preds.squeeze(0), data_source)
 
             print('IOU')
             for i in range(len(NUM_UNIQUE_VALUES_LONG)):
