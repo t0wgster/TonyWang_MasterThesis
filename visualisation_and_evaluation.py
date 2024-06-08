@@ -454,11 +454,11 @@ def capture_model_metrics_pixelwise_and_confusion_matrix_sf(model, test_dataset_
             n_list, d_list=dice_values_all_classes(mask, preds, SINGLE_PREDICTION=True)
 
 
-
-            if data_source=='rgb' or data_source=='hsi':
-                visualize_prediction_vs_ground_truth_overlay_all_sources(img.squeeze(0), None, mask, preds.squeeze(0), data_source)
-            elif data_source=='sf':
-                visualize_prediction_vs_ground_truth_overlay_all_sources(rgb_img.squeeze(0), hsi_img.squeeze(0), mask, preds.squeeze(0), data_source)
+            if visualize == True:
+                if data_source=='rgb' or data_source=='hsi':
+                    visualize_prediction_vs_ground_truth_overlay_all_sources(img.squeeze(0), None, mask, preds.squeeze(0), data_source)
+                elif data_source=='sf':
+                    visualize_prediction_vs_ground_truth_overlay_all_sources(rgb_img.squeeze(0), hsi_img.squeeze(0), mask, preds.squeeze(0), data_source)
 
             print('IOU')
             for i in range(len(NUM_UNIQUE_VALUES_LONG)):
