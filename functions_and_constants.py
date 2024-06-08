@@ -433,7 +433,7 @@ def sf_model_training_multiloss(model, train_loader, val_loader, num_epochs, ce_
         train_loop = tqdm(enumerate(train_loader),total=len(train_loader))
         for batch_idx, (rgb_img, hsi_img, mask) in train_loop:
 
-            if data_source = 'rgb':
+            if data_source == 'rgb':
                 rgb_img = rgb_img.to(DEVICE)
                 mask = mask.to(DEVICE)
                 mask = mask.type(torch.long)
@@ -444,7 +444,7 @@ def sf_model_training_multiloss(model, train_loader, val_loader, num_epochs, ce_
                     dice_loss = dice_loss_fn(predictions, mask)
                     loss = ce_loss + dice_loss
 
-            elif data_source = 'hsi':
+            elif data_source == 'hsi':
                 hsi_img = hsi_img.to(DEVICE)
                 mask = mask.to(DEVICE)
                 mask = mask.type(torch.long)
@@ -455,7 +455,7 @@ def sf_model_training_multiloss(model, train_loader, val_loader, num_epochs, ce_
                     dice_loss = dice_loss_fn(predictions, mask)
                     loss = ce_loss + dice_loss
             
-            elif data_source = 'sf':
+            elif data_source == 'sf':
                 rgb_img = rgb_img.to(DEVICE)
                 hsi_img = hsi_img.to(DEVICE)
                 mask = mask.to(DEVICE)
@@ -491,7 +491,7 @@ def sf_model_training_multiloss(model, train_loader, val_loader, num_epochs, ce_
         val_loop = tqdm(enumerate(val_loader),total=len(val_loader))
         for batch_idx, (rgb_img, hsi_img, mask) in val_loop:
             with torch.no_grad():
-                if data_source = 'rgb':
+                if data_source == 'rgb':
                     rgb_img = rgb_img.to(DEVICE)
                     mask = mask.to(DEVICE)
                     mask = mask.type(torch.long)
@@ -502,7 +502,7 @@ def sf_model_training_multiloss(model, train_loader, val_loader, num_epochs, ce_
                         dice_loss = dice_loss_fn(predictions, mask)
                         loss = ce_loss + dice_loss
 
-                elif data_source = 'hsi':
+                elif data_source == 'hsi':
                     hsi_img = hsi_img.to(DEVICE)
                     mask = mask.to(DEVICE)
                     mask = mask.type(torch.long)
@@ -513,7 +513,7 @@ def sf_model_training_multiloss(model, train_loader, val_loader, num_epochs, ce_
                         dice_loss = dice_loss_fn(predictions, mask)
                         loss = ce_loss + dice_loss
             
-                elif data_source = 'sf':
+                elif data_source == 'sf':
                     rgb_img = rgb_img.to(DEVICE)
                     hsi_img = hsi_img.to(DEVICE)
                     mask = mask.to(DEVICE)
