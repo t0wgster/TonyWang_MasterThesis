@@ -407,7 +407,7 @@ class DiceLoss(nn.Module):
 # sensor fusion model training with two possible loss functions
 def sf_model_training_multiloss(model, train_loader, val_loader, num_epochs, ce_loss_fn, dice_loss_fn, optimizer, scaler, scheduler, 
                             avg_train_loss_list, avg_val_loss_list, TRAIN_BATCH_SIZE, VAL_BATCH_SIZE,
-                             activate_scheduler=True, patience=15, model_name=''):
+                             activate_scheduler=True, patience=15, model_name='', data_source='rgb'):
 
     _today=datetime.today().strftime('%Y-%m-%d')
     print('Training beginning with following parameters:')
@@ -432,18 +432,41 @@ def sf_model_training_multiloss(model, train_loader, val_loader, num_epochs, ce_
         model.train()
         train_loop = tqdm(enumerate(train_loader),total=len(train_loader))
         for batch_idx, (rgb_img, hsi_img, mask) in train_loop:
+
+            if data_source = 'rgb':
+                rgb_img = rgb_img.to(DEVICE)
+                mask = mask.to(DEVICE)
+                mask = mask.type(torch.long)
+
+                with torch.cuda.amp.autocast():
+                    predictions = model(rgb_img.float())
+                    ce_loss = ce_loss_fn(predictions, mask)
+                    dice_loss = dice_loss_fn(predictions, mask)
+                    loss = ce_loss + dice_loss
+
+            elif data_source = 'hsi':
+                hsi_img = hsi_img.to(DEVICE)
+                mask = mask.to(DEVICE)
+                mask = mask.type(torch.long)
+
+                with torch.cuda.amp.autocast():
+                    predictions = model(hsi_img)
+                    ce_loss = ce_loss_fn(predictions, mask)
+                    dice_loss = dice_loss_fn(predictions, mask)
+                    loss = ce_loss + dice_loss
             
-            rgb_img = rgb_img.to(DEVICE)
-            hsi_img = hsi_img.to(DEVICE)
-            mask = mask.to(DEVICE)
-            mask = mask.type(torch.long)
+            elif data_source = 'sf':
+                rgb_img = rgb_img.to(DEVICE)
+                hsi_img = hsi_img.to(DEVICE)
+                mask = mask.to(DEVICE)
+                mask = mask.type(torch.long)
             
-            # forward
-            with torch.cuda.amp.autocast():
-                predictions = model(rgb_img.float(), hsi_img)
-                ce_loss = ce_loss_fn(predictions, mask)
-                dice_loss = dice_loss_fn(predictions, mask)
-                loss = ce_loss + dice_loss
+                # forward
+                with torch.cuda.amp.autocast():
+                    predictions = model(rgb_img.float(), hsi_img)
+                    ce_loss = ce_loss_fn(predictions, mask)
+                    dice_loss = dice_loss_fn(predictions, mask)
+                    loss = ce_loss + dice_loss
                 
             # backward
             optimizer.zero_grad()
@@ -455,15 +478,6 @@ def sf_model_training_multiloss(model, train_loader, val_loader, num_epochs, ce_
             train_loop.set_postfix(loss=loss.item())
             
             train_batch_loss = train_batch_loss + loss.item()
-            '''
-            for k in range(TRAIN_BATCH_SIZE):
-            
-                #calculate batch iou
-                pred_combined_mask=process_prediction_to_combined_mask(predictions)
-                
-                #batch iou
-                train_batch_iou=train_batch_iou+calculate_img_iou(iou_all_classes(pred_combined_mask[k,:,:], mask[k,:,:]))
-            '''
     
         #calculate average loss
         print(f'Average Train Batch Loss: {train_batch_loss/TRAIN_BATCH_SIZE:.4f}')
@@ -476,20 +490,41 @@ def sf_model_training_multiloss(model, train_loader, val_loader, num_epochs, ce_
         model.eval()
         val_loop = tqdm(enumerate(val_loader),total=len(val_loader))
         for batch_idx, (rgb_img, hsi_img, mask) in val_loop:
-            
             with torch.no_grad():
-                
-                rgb_img = rgb_img.to(DEVICE)
-                hsi_img = hsi_img.to(DEVICE)
-                mask = mask.to(DEVICE)
-                mask = mask.type(torch.long)
+                if data_source = 'rgb':
+                    rgb_img = rgb_img.to(DEVICE)
+                    mask = mask.to(DEVICE)
+                    mask = mask.type(torch.long)
+
+                    with torch.cuda.amp.autocast():
+                        predictions = model(rgb_img.float())
+                        ce_loss = ce_loss_fn(predictions, mask)
+                        dice_loss = dice_loss_fn(predictions, mask)
+                        loss = ce_loss + dice_loss
+
+                elif data_source = 'hsi':
+                    hsi_img = hsi_img.to(DEVICE)
+                    mask = mask.to(DEVICE)
+                    mask = mask.type(torch.long)
+
+                    with torch.cuda.amp.autocast():
+                        predictions = model(hsi_img)
+                        ce_loss = ce_loss_fn(predictions, mask)
+                        dice_loss = dice_loss_fn(predictions, mask)
+                        loss = ce_loss + dice_loss
             
-                # forward
-                with torch.cuda.amp.autocast():
-                    predictions = model(rgb_img.float(), hsi_img)
-                    ce_loss = ce_loss_fn(predictions, mask)
-                    dice_loss = dice_loss_fn(predictions, mask)
-                    val_loss = ce_loss + dice_loss
+                elif data_source = 'sf':
+                    rgb_img = rgb_img.to(DEVICE)
+                    hsi_img = hsi_img.to(DEVICE)
+                    mask = mask.to(DEVICE)
+                    mask = mask.type(torch.long)
+            
+                    # forward
+                    with torch.cuda.amp.autocast():
+                        predictions = model(rgb_img.float(), hsi_img)
+                        ce_loss = ce_loss_fn(predictions, mask)
+                        dice_loss = dice_loss_fn(predictions, mask)
+                        loss = ce_loss + dice_loss
 
     
             # update tqdm loop
