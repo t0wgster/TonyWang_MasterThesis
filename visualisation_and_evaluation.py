@@ -668,11 +668,12 @@ def calculate_model_inference_time(model, batch, data_source):
             end_time = time.time()
 
         elif data_source == 'rgb' or data_source == 'hsi':
-            _ = model(rgb_img)
+            _ = model(rgb_img.float())
             end_time = time.time()
         
     inference_time = end_time - start_time
-    print(inference_time)
+    print(f' Batch Inference Time: {inference_time}s')
+    print(f' Single Image Inference Time: {inference_time/len(batch)}s')
 
-    return inference_time
+    return inference_time/len(batch)
     
