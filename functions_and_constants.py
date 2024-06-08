@@ -547,27 +547,24 @@ def sf_model_training_multiloss(model, train_loader, val_loader, num_epochs, ce_
         ######################################################
         ################# early stopping #####################
         ######################################################
-        if patience > 0:
+        if patience > 0 and epoch>int(1/3*num_epochs):
             if avg_val_loss < best_val_loss:
                 best_val_loss = avg_val_loss
-                best_model = copy.deepcopy(model)
                 patience_counter = 0
-
-            else:
-                patience_counter += 1
-                if patience_counter >= patience:
-                    print(f'Early stopping at epoch {epoch}')
-                    # Save the best model
-                    torch.save({
+                # Save the best model
+                torch.save({
                     'epoch': epoch,
                     'model_state_dict': model.state_dict(),
                     'optimizer_state_dict': optimizer.state_dict(),
                     'loss': loss,
                     'scaler_state_dict': scaler.state_dict()
-                    }, f'best_model_{_today}_{model_name}.pt')
-                    return best_model, loss, avg_train_loss_list, avg_val_loss_list
+                }, f'best_model_{_today}_{model_name}.pt')
+            else:
+                patience_counter += 1
+                if patience_counter >= patience:
+                    print(f'Early stopping at epoch {epoch}')
                     break
-
+                
         if epoch==50 or epoch==75 or epoch==(num_epochs-1):
             # Save all the elements to a file
             torch.save({
