@@ -422,7 +422,7 @@ def capture_model_metrics_pixelwise_and_confusion_matrix_sf(model, test_dataset_
             rgb_img, hsi_img, mask = batch
 
             # model prediction
-            if data_source=='rgb'
+            if data_source=='rgb':
                 rgb_img = rgb_img.to(DEVICE).unsqueeze(0)
                 mask = mask.to(DEVICE)
 
@@ -430,7 +430,7 @@ def capture_model_metrics_pixelwise_and_confusion_matrix_sf(model, test_dataset_
 
                 preds = torch.argmax(softmax(model(rgb_img.float())),axis=1).to('cpu').squeeze(0)
 
-            if data_source=='hsi'
+            if data_source=='hsi':
                 hsi_img = hsi_img.to(DEVICE).unsqueeze(0)
                 mask = mask.to(DEVICE)
 
