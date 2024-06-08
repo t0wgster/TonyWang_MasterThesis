@@ -500,7 +500,7 @@ def sf_model_training_multiloss(model, train_loader, val_loader, num_epochs, ce_
                         predictions = model(rgb_img.float())
                         ce_loss = ce_loss_fn(predictions, mask)
                         dice_loss = dice_loss_fn(predictions, mask)
-                        loss = ce_loss + dice_loss
+                        val_loss = ce_loss + dice_loss
 
                 elif data_source == 'hsi':
                     hsi_img = hsi_img.to(DEVICE)
@@ -511,7 +511,7 @@ def sf_model_training_multiloss(model, train_loader, val_loader, num_epochs, ce_
                         predictions = model(hsi_img)
                         ce_loss = ce_loss_fn(predictions, mask)
                         dice_loss = dice_loss_fn(predictions, mask)
-                        loss = ce_loss + dice_loss
+                        val_loss = ce_loss + dice_loss
             
                 elif data_source == 'sf':
                     rgb_img = rgb_img.to(DEVICE)
@@ -524,7 +524,7 @@ def sf_model_training_multiloss(model, train_loader, val_loader, num_epochs, ce_
                         predictions = model(rgb_img.float(), hsi_img)
                         ce_loss = ce_loss_fn(predictions, mask)
                         dice_loss = dice_loss_fn(predictions, mask)
-                        loss = ce_loss + dice_loss
+                        val_loss = ce_loss + dice_loss
 
     
             # update tqdm loop
