@@ -612,6 +612,201 @@ def sf_model_training_multiloss(model, train_loader, val_loader, num_epochs, ce_
             
     return model, loss, avg_train_loss_list, avg_val_loss_list
 
+# sensor fusion model training with two possible loss functions
+def sf_model_training(model, train_loader, val_loader, num_epochs, loss_fn, optimizer, scaler, scheduler, 
+                            avg_train_loss_list, avg_val_loss_list, TRAIN_BATCH_SIZE, VAL_BATCH_SIZE,
+                             activate_scheduler=True, patience=15, model_name='', data_source='rgb'):
+
+    _today=datetime.today().strftime('%Y-%m-%d')
+    print('Training beginning with following parameters:')
+    print(f'No. Epochs: {num_epochs}')
+
+    #this is used for early stopping, value should be pretty large
+    best_val_loss = 1000
+    
+    #training with Cross Entropy Loss
+    for epoch in range(num_epochs):
+        
+        print(f'Epoch: {epoch}')
+        train_batch_loss=0
+        val_batch_loss=0
+        train_batch_iou=0
+        val_batch_iou=0
+        
+        #####################################################
+        ############### training instance ###################
+        #####################################################
+        
+        model.train()
+        train_loop = tqdm(enumerate(train_loader),total=len(train_loader))
+        for batch_idx, (rgb_img, hsi_img, mask) in train_loop:
+
+            if data_source == 'rgb':
+                rgb_img = rgb_img.to(DEVICE)
+                mask = mask.to(DEVICE)
+                mask = mask.type(torch.long)
+
+                with torch.cuda.amp.autocast():
+                    predictions = model(rgb_img.float())
+                    loss = ce_loss_fn(predictions, mask)
+
+            elif data_source == 'hsi':
+                hsi_img = hsi_img.to(DEVICE)
+                mask = mask.to(DEVICE)
+                mask = mask.type(torch.long)
+
+                with torch.cuda.amp.autocast():
+                    predictions = model(hsi_img)
+                    loss = ce_loss_fn(predictions, mask)
+            
+            elif data_source == 'sf':
+                rgb_img = rgb_img.to(DEVICE)
+                hsi_img = hsi_img.to(DEVICE)
+                mask = mask.to(DEVICE)
+                mask = mask.type(torch.long)
+            
+                # forward
+                with torch.cuda.amp.autocast():
+                    predictions = model(rgb_img.float(), hsi_img)
+                    loss = ce_loss_fn(predictions, mask)
+                
+            # backward
+            optimizer.zero_grad()
+            scaler.scale(loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
+    
+            # update tqdm loop
+            train_loop.set_postfix(loss=loss.item())
+            
+            train_batch_loss = train_batch_loss + loss.item()
+    
+        #calculate average loss
+        print(f'Average Train Batch Loss: {train_batch_loss/TRAIN_BATCH_SIZE:.4f}')
+        avg_train_loss_list.append(train_batch_loss/TRAIN_BATCH_SIZE)
+        
+        ####################################################
+        ############## validation instance #################
+        ####################################################
+        
+        model.eval()
+        val_loop = tqdm(enumerate(val_loader),total=len(val_loader))
+        for batch_idx, (rgb_img, hsi_img, mask) in val_loop:
+            with torch.no_grad():
+                if data_source == 'rgb':
+                    rgb_img = rgb_img.to(DEVICE)
+                    mask = mask.to(DEVICE)
+                    mask = mask.type(torch.long)
+
+                    with torch.cuda.amp.autocast():
+                        predictions = model(rgb_img.float())
+                        val_loss = loss_fn(predictions, mask)
+
+                elif data_source == 'hsi':
+                    hsi_img = hsi_img.to(DEVICE)
+                    mask = mask.to(DEVICE)
+                    mask = mask.type(torch.long)
+
+                    with torch.cuda.amp.autocast():
+                        predictions = model(hsi_img)
+                        val_loss = loss_fn(predictions, mask)
+            
+                elif data_source == 'sf':
+                    rgb_img = rgb_img.to(DEVICE)
+                    hsi_img = hsi_img.to(DEVICE)
+                    mask = mask.to(DEVICE)
+                    mask = mask.type(torch.long)
+            
+                    # forward
+                    with torch.cuda.amp.autocast():
+                        predictions = model(rgb_img.float(), hsi_img)
+                        val_loss = loss_fn(predictions, mask)
+
+    
+            # update tqdm loop
+            val_loop.set_postfix(val_loss=val_loss.item())
+            
+            val_batch_loss = val_batch_loss + val_loss.item()
+
+        avg_val_loss = val_batch_loss / len(val_loader)
+        print(f'Average Validation Batch Loss: {val_batch_loss/VAL_BATCH_SIZE:.4f}')        
+        avg_val_loss_list.append(val_batch_loss/VAL_BATCH_SIZE)
+        
+        #######################################################
+        ############### adjust learning rate ##################
+        #######################################################
+        
+        if activate_scheduler:
+            before_lr = optimizer.param_groups[0]["lr"]
+            scheduler.step()
+            after_lr = optimizer.param_groups[0]["lr"]
+            print(f"Epoch {epoch}: Adam lr {before_lr:.4f} -> {after_lr:.4f}")
+        
+        ###################################################################################################################
+        ############## visualize training and validation results and also save model after 50 epochs ######################
+        ###################################################################################################################
+            
+        if ((epoch%10==0) and (epoch>0) or (epoch==num_epochs)):
+            
+            plot_range=range(epoch)
+            
+            fig, axs = plt.subplots(figsize=(9,6))
+            
+            ###
+            # Loss
+            ###
+            
+            axs.plot(range(len(avg_train_loss_list)), avg_train_loss_list, marker='o', linestyle='-', label='Training Loss', color='blue')
+            
+            #create twin axis
+            ax2 = axs.twinx()
+            ax2.plot(range(len(avg_val_loss_list)), avg_val_loss_list, marker='o', linestyle='-', label='Validation Loss', color='orange')
+            
+            # Add labels and title
+            axs.set_xlabel('Epochs')
+            axs.set_ylabel('Training Loss', color='blue')
+            ax2.set_ylabel('Validation Loss', color='orange')
+            axs.set_title('Training vs Validation Loss')
+            
+            # Show legend for both axes
+            axs.legend(loc='upper left')
+            ax2.legend(loc='upper right')
+    
+            plt.grid(True)
+            plt.show()
+            
+        ######################################################
+        ################# early stopping #####################
+        ######################################################
+        if patience > 0 and epoch>int(1/3*num_epochs):
+            if avg_val_loss < best_val_loss:
+                best_val_loss = avg_val_loss
+                patience_counter = 0
+                # Save the best model
+                torch.save({
+                    'epoch': epoch,
+                    'model_state_dict': model.state_dict(),
+                    'optimizer_state_dict': optimizer.state_dict(),
+                    'loss': loss,
+                    'scaler_state_dict': scaler.state_dict()
+                }, f'best_model_{_today}_{model_name}.pt')
+            else:
+                patience_counter += 1
+                if patience_counter >= patience:
+                    print(f'Early stopping at epoch {epoch}')
+                    break
+                
+        if epoch==50 or epoch==75 or epoch==(num_epochs-1):
+            # Save all the elements to a file
+            torch.save({
+                'epoch': epoch,
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                'loss': loss,
+                'scaler_state_dict': scaler.state_dict()
+            }, f'model_e{epoch}_{_today}_{model_name}.pt')
+            
+    return model, loss, avg_train_loss_list, avg_val_loss_list
 
 ###################################################################################
 
