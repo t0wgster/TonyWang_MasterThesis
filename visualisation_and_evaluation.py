@@ -667,6 +667,7 @@ def calculate_model_inference_time(model, batch, data_source):
     rgb_img, hsi_img, mask = next(iter(batch))
     rgb_img = rgb_img.to(DEVICE)
     hsi_img = hsi_img.to(DEVICE)
+    print(rgb_img.shape)
     model.eval()
     with torch.no_grad():
         start_time = time.time()
