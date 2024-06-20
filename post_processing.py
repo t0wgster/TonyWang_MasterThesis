@@ -53,6 +53,7 @@ def capture_model_metrics_pixelwise_and_confusion_matrix_sf_postprocess_cv(model
     img_iou = []
     kernel = np.ones((kernel_size,kernel_size),np.uint8)                                                       
 
+    #create array to capture all ground truth and predictions to calculate final IoU and Dice Score at the end                                                         
     ground_truth_all_images=np.zeros((mask_shape[0], mask_shape[1], len(test_dataset_final)))
     prediction_all_images=np.zeros((mask_shape[0], mask_shape[1], len(test_dataset_final)))
     
@@ -90,18 +91,17 @@ def capture_model_metrics_pixelwise_and_confusion_matrix_sf_postprocess_cv(model
 
                 preds = torch.argmax(softmax(model(rgb_img.float(), hsi_img)),axis=1).to('cpu').squeeze(0)
 
-            # convert torch tensor to numpy array
-            prediction_all_images[:,:,n] = preds.numpy()
-            ground_truth_all_images[:,:,n] = mask.to('cpu').numpy()
-
             # get post processed mask
             preds_np = preds.squeeze(0).numpy().astype(np.uint8)
-
-            
             postprocessed_pred_mask = cv2.morphologyEx(preds_np, cv2.MORPH_OPEN, kernel)
-            
+            mask_np = mask.cpu().numpy().astype(np.uint8)
+            postprocessed_truth_mask = cv2.morphologyEx(mask_np, cv2.MORPH_OPEN, kernel)
 
-            #calculate dice and iou score
+            # add current mask and prediction to stacked array for 
+            prediction_all_images[:,:,n] = postprocessed_pred_mask
+            ground_truth_all_images[:,:,n] = postprocessed_truth_mask
+
+            #calculate dice and iou score for calculating final IoU and Dice Score at the end    
             is_list, u_list=intersection_and_union_all_classes(mask, preds, SINGLE_PREDICTION=True)
             n_list, d_list=dice_values_all_classes(mask, preds, SINGLE_PREDICTION=True)
 
