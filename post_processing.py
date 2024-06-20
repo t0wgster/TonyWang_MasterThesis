@@ -31,9 +31,9 @@ import skimage.io as skio # lighter dependency than tensorflow for working with 
 from thesis_constants.functions_and_constants import *
 from thesis_constants.visualisation_and_evaluation import *
 
-def capture_model_metrics_pixelwise_and_confusion_matrix_sf(model, test_dataset_final, data_source, visualize = True, 
+def capture_model_metrics_pixelwise_and_confusion_matrix_sf_postprocess_cv(model, test_dataset_final, data_source, visualize = True, 
                                                          confusion_matrix = True, norm_mode = 'pred', mask_shape=(320,320),
-                                                         smooth=1e-8):
+                                                         smooth=1e-8, kernel_size):
 
     test_ds_union = [0,0,0,0,0,0,0,0,0,0]
     test_ds_intersection = [0,0,0,0,0,0,0,0,0,0]
@@ -41,6 +41,7 @@ def capture_model_metrics_pixelwise_and_confusion_matrix_sf(model, test_dataset_
     test_ds_denominator = [0,0,0,0,0,0,0,0,0,0]
     img_dice = []
     img_iou = []
+    kernel = np.ones((kernel_size,kernel_size),np.uint8)                                                       
 
     ground_truth_all_images=np.zeros((mask_shape[0], mask_shape[1], len(test_dataset_final)))
     prediction_all_images=np.zeros((mask_shape[0], mask_shape[1], len(test_dataset_final)))
@@ -89,12 +90,6 @@ def capture_model_metrics_pixelwise_and_confusion_matrix_sf(model, test_dataset_
 
 
             if visualize == True:
-            #    if data_source=='rgb':
-            #        visualize_prediction_vs_ground_truth_overlay_all_sources(rgb_img.squeeze(0), None, mask, preds.squeeze(0), data_source)
-            #    if data_source=='hsi':
-            #        visualize_prediction_vs_ground_truth_overlay_all_sources(rgb_img.squeeze(0), hsi_img.squeeze(0), mask, preds.squeeze(0), data_source)
-            #    elif data_source=='sf':
-            #        visualize_prediction_vs_ground_truth_overlay_all_sources(rgb_img.squeeze(0), hsi_img.squeeze(0), mask, preds.squeeze(0), data_source)
 
                 visualize_prediction_vs_ground_truth_overlay_all_sources(rgb_img.squeeze(0), hsi_img.squeeze(0), mask, preds.squeeze(0), data_source)
 
