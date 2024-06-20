@@ -159,3 +159,57 @@ def capture_model_metrics_pixelwise_and_confusion_matrix_sf_postprocess_cv(model
             plt.show()
 
             return test_ds_union, test_ds_intersection, test_ds_numerator, test_ds_denominator, img_iou, img_dice
+
+
+def visualize_prediction_vs_ground_truth_overlay_all_sources(rgb_img, hsi_img, truth_mask, pred_mask, data_source):
+
+    if data_source == 'rgb':
+
+        fig , axs =  plt.subplots(1, 3, figsize=(18, 12))
+
+        axs[0].set_title('Plain Image RGB')
+        axs[1].set_title('Image with Ground Truth')
+        axs[2].set_title('Image with Prediction')
+
+        axs[0].imshow(np.asarray(rgb_img.to('cpu').permute(1,2,0)))
+        axs[1].imshow(np.asarray(rgb_img.to('cpu').permute(1,2,0)))
+        axs[2].imshow(np.asarray(rgb_img.to('cpu').permute(1,2,0)))
+
+        axs[1].imshow(np.asarray(truth_mask.to('cpu')), cmap=cmap_long, norm=norm_long, alpha=0.3)
+        axs[2].imshow(np.asarray(pred_mask.to('cpu')), cmap=cmap_long, norm=norm_long, alpha=0.3)
+
+    elif data_source == 'hsi':
+
+        fig , axs =  plt.subplots(1, 4, figsize=(18, 12))
+
+        axs[0].set_title('Plain Image HSI')
+        axs[1].set_title('Image with Ground Truth')
+        axs[2].set_title('Image with Prediction')
+        axs[3].set_title('RGB Reference')
+
+        axs[0].imshow(np.asarray(hsi_img.to('cpu').permute(1,2,0))[:,:,0])
+        axs[1].imshow(np.asarray(hsi_img.to('cpu').permute(1,2,0))[:,:,0])
+        axs[2].imshow(np.asarray(hsi_img.to('cpu').permute(1,2,0))[:,:,0])
+        axs[3].imshow(np.asarray(rgb_img.to('cpu').permute(1,2,0)))
+
+        axs[1].imshow(np.asarray(truth_mask.to('cpu')), cmap=cmap_long, norm=norm_long, alpha=0.3)
+        axs[2].imshow(np.asarray(pred_mask.to('cpu')), cmap=cmap_long, norm=norm_long, alpha=0.3)
+
+    elif data_source == 'sf':
+
+        fig , axs =  plt.subplots(1, 4, figsize=(18, 12))
+
+        axs[0].set_title('Plain Image RGB')
+        axs[1].set_title('Plain Image HSI')
+        axs[2].set_title('Image with Ground Truth')
+        axs[3].set_title('Image with Prediction')
+
+        axs[0].imshow(np.asarray(rgb_img.to('cpu').permute(1,2,0)))
+        axs[1].imshow(np.asarray(hsi_img.to('cpu').permute(1,2,0))[:,:,0])
+        axs[2].imshow(np.asarray(rgb_img.to('cpu').permute(1,2,0)))
+        axs[3].imshow(np.asarray(rgb_img.to('cpu').permute(1,2,0)))
+
+        axs[2].imshow(np.asarray(truth_mask.to('cpu')), cmap=cmap_long, norm=norm_long, alpha=0.3)
+        axs[3].imshow(np.asarray(pred_mask.to('cpu')), cmap=cmap_long, norm=norm_long, alpha=0.3)
+
+    plt.show()
