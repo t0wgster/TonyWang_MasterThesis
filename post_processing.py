@@ -31,6 +31,16 @@ import skimage.io as skio # lighter dependency than tensorflow for working with 
 from thesis_constants.functions_and_constants import *
 from thesis_constants.visualisation_and_evaluation import *
 
+def post_processing_opening(rgb_img, hsi_img, truth_mask, pred_mask):
+  
+    #convert input to numpy for postprocessing with cv2
+    pred_mask=pred_mask.squeeze(0).numpy().astype(np.uint8)
+
+    #processed mask with erosion and dilation
+    opening = cv2.morphologyEx(pred_mask, cv2.MORPH_OPEN, kernel)
+
+    return opening
+
 def capture_model_metrics_pixelwise_and_confusion_matrix_sf_postprocess_cv(model, test_dataset_final, data_source, visualize = True, 
                                                          confusion_matrix = True, norm_mode = 'pred', mask_shape=(320,320),
                                                          smooth=1e-8, kernel_size):
@@ -84,14 +94,20 @@ def capture_model_metrics_pixelwise_and_confusion_matrix_sf_postprocess_cv(model
             prediction_all_images[:,:,n] = preds.numpy()
             ground_truth_all_images[:,:,n] = mask.to('cpu').numpy()
 
+            # get post processed mask
+            preds_np = preds.squeeze(0).numpy().astype(np.uint8)
+
+            
+            postprocessed_pred_mask = cv2.morphologyEx(preds_np, cv2.MORPH_OPEN, kernel)
+            
+
             #calculate dice and iou score
             is_list, u_list=intersection_and_union_all_classes(mask, preds, SINGLE_PREDICTION=True)
             n_list, d_list=dice_values_all_classes(mask, preds, SINGLE_PREDICTION=True)
 
-
             if visualize == True:
 
-                visualize_prediction_vs_ground_truth_overlay_all_sources(rgb_img.squeeze(0), hsi_img.squeeze(0), mask, preds.squeeze(0), data_source)
+                visualize_prediction_vs_ground_truth_overlay_all_sources_postprocessing(rgb_img.squeeze(0), hsi_img.squeeze(0), mask, preds.squeeze(0), postprocessed_pred_mask, data_source)
 
             print('IOU')
             for i in range(len(NUM_UNIQUE_VALUES_LONG)):
@@ -161,55 +177,75 @@ def capture_model_metrics_pixelwise_and_confusion_matrix_sf_postprocess_cv(model
             return test_ds_union, test_ds_intersection, test_ds_numerator, test_ds_denominator, img_iou, img_dice
 
 
-def visualize_prediction_vs_ground_truth_overlay_all_sources(rgb_img, hsi_img, truth_mask, pred_mask, data_source):
+
+def visualize_prediction_vs_ground_truth_overlay_all_sources_postprocessing(rgb_img, hsi_img, truth_mask, pred_mask, processed_pred_mask, data_source):
 
     if data_source == 'rgb':
 
-        fig , axs =  plt.subplots(1, 3, figsize=(18, 12))
+        fig , axs =  plt.subplots(1, 4, figsize=(18, 12))
 
         axs[0].set_title('Plain Image RGB')
         axs[1].set_title('Image with Ground Truth')
         axs[2].set_title('Image with Prediction')
+        axs[3].set_title('Image with Post Processing')
 
         axs[0].imshow(np.asarray(rgb_img.to('cpu').permute(1,2,0)))
         axs[1].imshow(np.asarray(rgb_img.to('cpu').permute(1,2,0)))
         axs[2].imshow(np.asarray(rgb_img.to('cpu').permute(1,2,0)))
+        axs[2].imshow(np.asarray(rgb_img.to('cpu').permute(1,2,0)))
 
         axs[1].imshow(np.asarray(truth_mask.to('cpu')), cmap=cmap_long, norm=norm_long, alpha=0.3)
         axs[2].imshow(np.asarray(pred_mask.to('cpu')), cmap=cmap_long, norm=norm_long, alpha=0.3)
+        axs[3].imshow(processed_pred_mask, cmap=cmap_long, norm=norm_long, alpha=0.3)
+
+        for ax in axs: 
+            ax.axis('off')
+
 
     elif data_source == 'hsi':
 
-        fig , axs =  plt.subplots(1, 4, figsize=(18, 12))
+        fig , axs =  plt.subplots(1, 5, figsize=(18, 12))
 
         axs[0].set_title('Plain Image HSI')
         axs[1].set_title('Image with Ground Truth')
         axs[2].set_title('Image with Prediction')
-        axs[3].set_title('RGB Reference')
+        axs[3].set_title('Image with Post Processing')
+        axs[4].set_title('RGB Reference')
 
         axs[0].imshow(np.asarray(hsi_img.to('cpu').permute(1,2,0))[:,:,0])
-        axs[1].imshow(np.asarray(hsi_img.to('cpu').permute(1,2,0))[:,:,0])
-        axs[2].imshow(np.asarray(hsi_img.to('cpu').permute(1,2,0))[:,:,0])
+        axs[1].imshow(np.asarray(rgb_img.to('cpu').permute(1,2,0)))
+        axs[2].imshow(np.asarray(rgb_img.to('cpu').permute(1,2,0)))
         axs[3].imshow(np.asarray(rgb_img.to('cpu').permute(1,2,0)))
+        axs[4].imshow(np.asarray(rgb_img.to('cpu').permute(1,2,0)))
 
         axs[1].imshow(np.asarray(truth_mask.to('cpu')), cmap=cmap_long, norm=norm_long, alpha=0.3)
         axs[2].imshow(np.asarray(pred_mask.to('cpu')), cmap=cmap_long, norm=norm_long, alpha=0.3)
+        axs[3].imshow(processed_pred_mask, cmap=cmap_long, norm=norm_long, alpha=0.3)
 
+        for ax in axs: 
+            ax.axis('off')
+  
     elif data_source == 'sf':
 
-        fig , axs =  plt.subplots(1, 4, figsize=(18, 12))
+        fig , axs =  plt.subplots(1, 5, figsize=(18, 12))
 
         axs[0].set_title('Plain Image RGB')
         axs[1].set_title('Plain Image HSI')
         axs[2].set_title('Image with Ground Truth')
         axs[3].set_title('Image with Prediction')
+        axs[4].set_title('Image with Post Processing')
 
         axs[0].imshow(np.asarray(rgb_img.to('cpu').permute(1,2,0)))
         axs[1].imshow(np.asarray(hsi_img.to('cpu').permute(1,2,0))[:,:,0])
         axs[2].imshow(np.asarray(rgb_img.to('cpu').permute(1,2,0)))
         axs[3].imshow(np.asarray(rgb_img.to('cpu').permute(1,2,0)))
+        axs[4].imshow(np.asarray(rgb_img.to('cpu').permute(1,2,0)))
 
         axs[2].imshow(np.asarray(truth_mask.to('cpu')), cmap=cmap_long, norm=norm_long, alpha=0.3)
         axs[3].imshow(np.asarray(pred_mask.to('cpu')), cmap=cmap_long, norm=norm_long, alpha=0.3)
+        axs[4].imshow(processed_pred_mask, cmap=cmap_long, norm=norm_long, alpha=0.3)
+
+        for ax in axs: 
+            ax.axis('off')
 
     plt.show()
