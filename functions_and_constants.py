@@ -282,7 +282,7 @@ class _WH_HSI_Dataset(Dataset):
 ################################ Sensor Fusion #####################################
 
 class _WH_RGB_HSI_Dataset(Dataset):
-    def __init__(self, rgb_img_dir, hsi_img_dir, mask_dir, transform=None):
+    def __init__(self, rgb_img_dir, hsi_img_dir, mask_dir, transform):
         self.rgb_img_dir=rgb_img_dir
         self.hsi_img_dir=hsi_img_dir
         self.mask_dir=mask_dir
@@ -305,11 +305,14 @@ class _WH_RGB_HSI_Dataset(Dataset):
 
         #read in HSI image and mask as numpy
         hsi_image=np.load(hsi_img_name).astype(np.float32) #care how many channels the HSI images have
+        
+        #rescale HSI values
+        hsi_image=(hsi_image+4.95)/(4.95+5.80)
+        
         mask = np.load(mask_name)
         
         #replace mask values with 0,1,2,3,4,5, etc.
         replace_np_values(mask, defects_only=False)
-
 
         #loops around to find transformed images with defects, after 7 loops it just takes whatever it finds
         if self.transform:
@@ -324,7 +327,31 @@ class _WH_RGB_HSI_Dataset(Dataset):
                     break;
                 if img_contains_nothing(mask_trans):
                     i = i - 1
+     
+            return rgb_image_trans, hsi_image_trans, mask_trans
+    
+        elif self.transform == None:
+            return rgb_image, hsi_image, mask
+        
+class _WH_RGB_HSI_Dataset_Wrapper(Dataset):
+    
+    def __init__(self, dataset, transform):
+        self.dataset = dataset
+        self.transform = transform
 
+    def __len__(self):
+        return len(self.dataset)
+    
+    def __getitem__(self, idx):
+        
+        rgb_image, hsi_image, mask = self.dataset[idx]
+        
+        
+        transformed = self.transform(image=rgb_image, image1 = hsi_image, mask=mask)
+        rgb_image_trans = transformed["image"]
+        hsi_image_trans = transformed["image1"]
+        mask_trans = transformed["mask"]
+        
         return rgb_image_trans, hsi_image_trans, mask_trans
 
 #################################################
