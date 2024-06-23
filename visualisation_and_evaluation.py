@@ -686,7 +686,7 @@ def calculate_model_inference_time(model, batch, data_source):
     inference_time = end_time - start_time
     print(f' Batch Inference Time: {inference_time}s')
     print(f' Batch Length: {len(batch)}')
-    print(f' Single Image Inference Time: {inference_time/len(batch)}s')
+    print(f' Single Image Inference Time: {inference_time/rgb_img[:,0,0,0}s')
 
     return inference_time/len(batch)
     
