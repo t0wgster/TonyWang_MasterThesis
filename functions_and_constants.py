@@ -675,7 +675,7 @@ def sf_model_training(model, train_loader, val_loader, num_epochs, loss_fn, opti
 
                 with torch.cuda.amp.autocast():
                     predictions = model(rgb_img.float())
-                    loss = ce_loss_fn(predictions, mask)
+                    loss = loss_fn(predictions, mask)
 
             elif data_source == 'hsi':
                 hsi_img = hsi_img.to(DEVICE)
@@ -684,7 +684,7 @@ def sf_model_training(model, train_loader, val_loader, num_epochs, loss_fn, opti
 
                 with torch.cuda.amp.autocast():
                     predictions = model(hsi_img)
-                    loss = ce_loss_fn(predictions, mask)
+                    loss = loss_fn(predictions, mask)
             
             elif data_source == 'sf':
                 rgb_img = rgb_img.to(DEVICE)
@@ -695,7 +695,7 @@ def sf_model_training(model, train_loader, val_loader, num_epochs, loss_fn, opti
                 # forward
                 with torch.cuda.amp.autocast():
                     predictions = model(rgb_img.float(), hsi_img)
-                    loss = ce_loss_fn(predictions, mask)
+                    loss = loss_fn(predictions, mask)
                 
             # backward
             optimizer.zero_grad()
