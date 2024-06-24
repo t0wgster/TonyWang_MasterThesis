@@ -434,7 +434,7 @@ class DiceLoss(nn.Module):
 # sensor fusion model training with two possible loss functions
 def sf_model_training_multiloss(model, train_loader, val_loader, num_epochs, ce_loss_fn, dice_loss_fn, optimizer, scaler, scheduler, 
                             avg_train_loss_list, avg_val_loss_list, TRAIN_BATCH_SIZE, VAL_BATCH_SIZE,
-                             activate_scheduler=True, patience=15, model_name='', data_source='rgb', save_states = False):
+                             activate_scheduler=True, patience=15, model_name='', data_source='rgb', save_state = False):
 
     _today=datetime.today().strftime('%Y-%m-%d')
     print('Training beginning with following parameters:')
