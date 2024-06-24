@@ -41,9 +41,9 @@ def post_processing_opening(rgb_img, hsi_img, truth_mask, pred_mask):
 
     return opening
 
-def capture_model_metrics_pixelwise_and_confusion_matrix_sf_postprocess_cv(model, test_dataset_final, data_source, visualize = True, 
+def capture_model_metrics_pixelwise_and_confusion_matrix_sf_postprocess_cv(model, test_dataset_final, data_source, kernel_size, visualize = True, 
                                                          confusion_matrix = True, norm_mode = 'pred', mask_shape=(320,320),
-                                                         smooth=1e-8, kernel_size):
+                                                         smooth=1e-8, ):
 
     test_ds_union = [0,0,0,0,0,0,0,0,0,0]
     test_ds_intersection = [0,0,0,0,0,0,0,0,0,0]
