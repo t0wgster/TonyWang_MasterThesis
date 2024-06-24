@@ -192,7 +192,7 @@ def visualize_prediction_vs_ground_truth_overlay_all_sources_postprocessing(rgb_
         axs[0].imshow(np.asarray(rgb_img.to('cpu').permute(1,2,0)))
         axs[1].imshow(np.asarray(rgb_img.to('cpu').permute(1,2,0)))
         axs[2].imshow(np.asarray(rgb_img.to('cpu').permute(1,2,0)))
-        axs[2].imshow(np.asarray(rgb_img.to('cpu').permute(1,2,0)))
+        axs[3].imshow(np.asarray(rgb_img.to('cpu').permute(1,2,0)))
 
         axs[1].imshow(np.asarray(truth_mask.to('cpu')), cmap=cmap_long, norm=norm_long, alpha=0.3)
         axs[2].imshow(np.asarray(pred_mask.to('cpu')), cmap=cmap_long, norm=norm_long, alpha=0.3)
