@@ -627,7 +627,7 @@ def sf_model_training_multiloss(model, train_loader, val_loader, num_epochs, ce_
                     print(f'Early stopping at epoch {epoch}')
                     break
                 
-        if epoch==50 or epoch==75 or epoch==(num_epochs-1):
+        if (epoch==50 and save_state == True) or (epoch==75 and save_state == True) or epoch==(num_epochs-1):
             # Save all the elements to a file
             torch.save({
                 'epoch': epoch,
