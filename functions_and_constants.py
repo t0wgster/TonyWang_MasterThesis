@@ -434,7 +434,7 @@ class DiceLoss(nn.Module):
 # sensor fusion model training with two possible loss functions
 def sf_model_training_multiloss(model, train_loader, val_loader, num_epochs, ce_loss_fn, dice_loss_fn, optimizer, scaler, scheduler, 
                             avg_train_loss_list, avg_val_loss_list, TRAIN_BATCH_SIZE, VAL_BATCH_SIZE,
-                             activate_scheduler=True, patience=15, model_name='', data_source='rgb'):
+                             activate_scheduler=True, patience=15, model_name='', data_source='rgb', save_states = False):
 
     _today=datetime.today().strftime('%Y-%m-%d')
     print('Training beginning with following parameters:')
@@ -642,7 +642,7 @@ def sf_model_training_multiloss(model, train_loader, val_loader, num_epochs, ce_
 # sensor fusion model training with two possible loss functions
 def sf_model_training(model, train_loader, val_loader, num_epochs, loss_fn, optimizer, scaler, scheduler, 
                             avg_train_loss_list, avg_val_loss_list, TRAIN_BATCH_SIZE, VAL_BATCH_SIZE,
-                             activate_scheduler=True, patience=15, model_name='', data_source='rgb'):
+                             activate_scheduler=True, patience=15, model_name='', data_source='rgb', save_state = False):
 
     _today=datetime.today().strftime('%Y-%m-%d')
     print('Training beginning with following parameters:')
@@ -823,7 +823,7 @@ def sf_model_training(model, train_loader, val_loader, num_epochs, loss_fn, opti
                     print(f'Early stopping at epoch {epoch}')
                     break
                 
-        if epoch==50 or epoch==75 or epoch==(num_epochs-1):
+        if (epoch==50 and save_state == True) or (epoch==75 and save_state == True) or epoch==(num_epochs-1):
             # Save all the elements to a file
             torch.save({
                 'epoch': epoch,
@@ -846,7 +846,7 @@ def sf_model_training(model, train_loader, val_loader, num_epochs, loss_fn, opti
 # model training with two possible loss functions
 def model_training_multiloss(model, train_loader, val_loader, num_epochs, ce_loss_fn, dice_loss_fn, optimizer, scaler, scheduler, 
                             avg_train_loss_list, avg_val_loss_list, TRAIN_BATCH_SIZE, VAL_BATCH_SIZE,
-                             activate_scheduler=True, patience=15, model_name=''):
+                             activate_scheduler=True, patience=15, model_name='', save_state = False):
 
     #this is used for early stopping, value should be pretty large
     best_val_loss = 1000
@@ -992,7 +992,7 @@ def model_training_multiloss(model, train_loader, val_loader, num_epochs, ce_los
                     print(f'Early stopping at epoch {epoch}')
                     break
                 
-        if epoch==50 or epoch==75 or epoch==(num_epochs-1):
+        if (epoch==50 and save_state == True) or (epoch==75 and save_state == True) or epoch==(num_epochs-1):
             # Save all the elements to a file
             torch.save({
                 'epoch': epoch,
@@ -1015,7 +1015,7 @@ def model_training_multiloss(model, train_loader, val_loader, num_epochs, ce_los
 # model training with one loss function
 def model_training(model, train_loader, val_loader, num_epochs, loss_fn, optimizer, scaler, scheduler, 
                             avg_train_loss_list, avg_val_loss_list, TRAIN_BATCH_SIZE, VAL_BATCH_SIZE,
-                            activate_scheduler=True, patience=15, model_name=''):
+                            activate_scheduler=True, patience=15, model_name='', save_state = False):
 
     #this is used for early stopping, value should be pretty large
     best_val_loss = 1000
@@ -1158,7 +1158,7 @@ def model_training(model, train_loader, val_loader, num_epochs, loss_fn, optimiz
                     print(f'Early stopping at epoch {epoch}')
                     break
                 
-        if epoch==50 or epoch==75 or epoch==(num_epochs-1):
+        if (epoch==50 and save_state == True) or (epoch==75 and save_state == True) or epoch==(num_epochs-1):
             # Save all the elements to a file
             torch.save({
                 'epoch': epoch,
