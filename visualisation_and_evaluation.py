@@ -28,7 +28,7 @@ from torchsummary import summary
 from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix, f1_score
 import skimage.io as skio # lighter dependency than tensorflow for working with our tensors/arrays
 
-from thesis_constants.functions_and_constants import *
+from TonyWang_MasterThesis.functions_and_constants import *
 
 ##################################################
 ############### Visualisation ####################
