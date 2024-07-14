@@ -5,7 +5,8 @@ import matplotlib.pyplot as plt
 import cv2
 from matplotlib.colors import ListedColormap, BoundaryNorm
 from datetime import datetime
-import time
+import random
+import copy
 
 #augmentation
 from albumentations.pytorch import ToTensorV2
@@ -23,490 +24,810 @@ from torch.optim import Adam
 import torch.nn.functional as F
 from tqdm import tqdm
 from torch.optim.lr_scheduler import StepLR, MultiStepLR, ReduceLROnPlateau, ExponentialLR, CosineAnnealingLR
-from torchsummary import summary
 
 from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix, f1_score
 import skimage.io as skio # lighter dependency than tensorflow for working with our tensors/arrays
 
-from TonyWang_MasterThesis.functions_and_constants import *
+###########################################################
+#################### Augmentations ########################
+###########################################################
 
-##################################################
-############### Visualisation ####################
-##################################################
+transformation = A.Compose([
+    A.Resize(640,640),
+    A.RandomCrop(width=320, height=320),
+    A.RandomRotate90(p=0.5),
+    A.Rotate(limit=20, p=0.5, border_mode=cv2.BORDER_CONSTANT),
+    A.HorizontalFlip(p=0.5),
+    A.VerticalFlip(p=0.5),
+    A.RGBShift(r_shift_limit=(0,0.1), g_shift_limit=0, b_shift_limit=0, p=0.5),
+    #A.augmentations.transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5)),
+    #A.augmentations.transforms.Normalize(mean=img_mean, std=img_std),
+    ToTensorV2()
+])
 
-def rgb_visualize_prediction_vs_ground_truth_single_batches_before_argmax(model, loader, height, width):
+transformation_resize_img=A.Compose([
+    A.Resize(960,960),
+    #ToTensorV2()
+])
+
+transformation_inference=A.Compose([
+    A.Resize(320, 320),
+    ToTensorV2()
+])
+
+test_transformation = A.Compose([
+    A.Resize(320,320),
+    #A.augmentations.transforms.Normalize(mean=img_mean, std=img_std),
+    #A.augmentations.transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5)),
+    ToTensorV2()
+])
+
+hsi_mask_crop = A.Compose([
+    A.Crop(x_min=0, y_min=0, x_max=320, y_max=672)
+])
+
+hsi_transformation = A.Compose([
+    #A.Resize(640,640),
+    A.RandomCrop(width=224, height=224),
+    A.RandomRotate90(p=0.5),
+    A.Rotate(limit=20, p=0.5, border_mode=cv2.BORDER_CONSTANT),
+    #A.RandomBrightnessContrast(p=0.5, brightness_limit=(-0.1, 0.25), contrast_limit=(-0.1, 0.15), brightness_by_max=False),
+    A.HorizontalFlip(p=0.5),
+    A.VerticalFlip(p=0.5),
+    #A.RGBShift(r_shift_limit=(0,0.1), g_shift_limit=0, b_shift_limit=0, p=0.5),
+    #A.augmentations.transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5)),
+    #A.augmentations.transforms.Normalize(mean=img_mean, std=img_std),
+    ToTensorV2()
+])
+
+test_hsi_transformation = A.Compose([
+    #A.RGBShift(r_shift_limit=(0,0.1), g_shift_limit=0, b_shift_limit=0, p=0.5),
+    #A.augmentations.transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5)),
+    #A.augmentations.transforms.Normalize(mean=img_mean, std=img_std),
+    ToTensorV2()
+])
+
+sf_transformation = A.Compose([
+    A.RandomCrop(width=224, height=224),
+    A.RandomRotate90(p=0.5),
+    A.Rotate(limit=20, p=0.5, border_mode=cv2.BORDER_CONSTANT),
+    A.HorizontalFlip(p=0.5),
+    A.VerticalFlip(p=0.5),
+    ToTensorV2()
+],
+additional_targets={'image1':'image'}
+)
+
+sf_no_transformation = A.Compose([
+    ToTensorV2()
+],
+additional_targets={'image1':'image'}
+)
+
+###############################################################
+############ Custom Dataset and Preprocessing  ################
+###############################################################
+
+#replace mask values with smaller numbers
+def replace_np_values(np_array, defects_only=False):
+    ''' Description: converts mask values of defect class (0,1,2,4,8,16 etc.) into more reasonable numbers (0,1,2,3,4 etc.)
+        Input: Segmentation Mask (Numpy Array), Bool
+        Output: Segmentation Mask (Numpy Array)
+        '''
+
+    value_to_replace = -1
+    new_value = 0
+    np_array[np_array == value_to_replace] = new_value 
+    
+    value_to_replace = 10
+    new_value = 0
+    np_array[np_array == value_to_replace] = new_value 
+    
+    #value_to_replace = 1
+    #new_value = 1
+    #np_array[np_array == value_to_replace] = new_value    
+
+    #value_to_replace = 2
+    #new_value = 2
+    #np_array[np_array == value_to_replace] = new_value
+    
+    value_to_replace = 4
+    new_value = 3
+    np_array[np_array == value_to_replace] = new_value
+
+    value_to_replace = 8
+    new_value = 4
+    np_array[np_array == value_to_replace] = new_value
+
+    value_to_replace = 16
+    new_value = 5
+    np_array[np_array == value_to_replace] = new_value
+
+    value_to_replace = 32
+    new_value = 6
+    np_array[np_array == value_to_replace] = new_value
+
+    value_to_replace = 64
+    new_value = 7
+    np_array[np_array == value_to_replace] = new_value
+
+    value_to_replace = 128
+    new_value = 8
+    np_array[np_array == value_to_replace] = new_value
+    
+    value_to_replace = 256
+    new_value = 9
+    np_array[np_array == value_to_replace] = new_value
+
+    value_to_replace = 512
+    new_value = 9
+    np_array[np_array == value_to_replace] = new_value
+    
+    value_to_replace = 512
+    new_value = 9
+    np_array[np_array == value_to_replace] = new_value
+
+    if defects_only:
+        value_to_replace = 1
+        new_value = 0
+        np_array[np_array == value_to_replace] = new_value
+
+# finds out if image contains any defects
+def img_contains_defects(mask):
+    ''' Description: Checks if the mask contains any defects (2 - 9). This is used to reshuffle the randomized data augmentation when no defects are present
+        Input: Segmentation Mask (Torch Tensor)
+        Output: Bool
+        '''
+    if (torch.any(mask == 2) or torch.any(mask == 3) or torch.any(mask == 4) or torch.any(mask == 5) or torch.any(mask == 6) or torch.any(mask == 7) or torch.any(mask == 9)):
+        return True
+    else:
+        return False
+
+def img_contains_nothing(mask):
+    if torch.all(mask == 0):
+        return False
+    else:
+        return True
+
+################################ Sensor Fusion #####################################
+
+class _WH_RGB_HSI_Dataset(Dataset):
     '''
-    Description: Predicts and visualizes model results pre- (probability mask) and post argmax (segmentation mask) from a dataloader batch. 
-    Input: Model, Dataloader, RGB Image Width and Height
-    Output: Predicted Mask
+    Description: Custom Dataset for Pytorch. Inputted RGB and HSI Images are normalized and converted not float32. Since HSI images
+    were preprocessed with PCA, they have to be scaled as well. Masks have their values replaced and then all three sources undergo 
+    data augmentation.
     '''
-    model.eval()
-    
-    #for checking if masks fit to respective image, all defects are displayed in a unique color
-    
-    print('Legend:')
-    for i, color in enumerate(COLORS_LONG):
-        print(f'{TXT_COLORS_LONG[i]} -> {CLASSES_LONG[i]}')
-        
-    print('\033[0m- - - - - - -')
-    
-    batch=next(iter(loader))
+    def __init__(self, rgb_img_dir, hsi_img_dir, mask_dir, transform):
+        self.rgb_img_dir=rgb_img_dir
+        self.hsi_img_dir=hsi_img_dir
+        self.mask_dir=mask_dir
+        self.transform=transform
 
-    img, mask=batch
+        self.rgb_images=os.listdir(rgb_img_dir)
+        self.hsi_images=os.listdir(hsi_img_dir)
+        
+    def __len__(self):
+        return len(self.hsi_images)
+
+    def __getitem__(self, idx):
+        
+        rgb_img_name=os.path.join(self.rgb_img_dir, self.rgb_images[idx])
+        hsi_img_name=os.path.join(self.hsi_img_dir, self.rgb_images[idx].replace('.png', '.npy'))
+        mask_name=os.path.join(self.mask_dir, self.rgb_images[idx].replace('.png', '.npy'))
+
+        #read in RGB image as PIL
+        rgb_image=np.array(Image.open(rgb_img_name).convert('RGB'))/255
+
+        #read in HSI image and mask as numpy
+        hsi_image=np.load(hsi_img_name).astype(np.float32) #care how many channels the HSI images have
+        
+        #rescale HSI values
+        hsi_image=(hsi_image+4.95)/(4.95+5.80)
+        
+        mask = np.load(mask_name)
+        
+        #replace mask values with 0,1,2,3,4,5, etc.
+        replace_np_values(mask, defects_only=False)
+
+        #loops around to find transformed images with defects, after 7 loops it just takes whatever it finds
+        if self.transform:
+            for i in range(14):
+                transformed = self.transform(image=rgb_image, image1 = hsi_image, mask=mask)
+                rgb_image_trans = transformed["image"]
+                hsi_image_trans = transformed["image1"]
+                mask_trans = transformed["mask"]
+
+                #check if mask onctains defects, if not then reroll
+                if img_contains_defects(mask_trans):
+                    break;
+                if img_contains_nothing(mask_trans):
+                    i = i - 1
+     
+            return rgb_image_trans, hsi_image_trans, mask_trans
     
-    img = img.to(DEVICE)
-    mask = mask.to(DEVICE)
+        elif self.transform == None:
+            return rgb_image, hsi_image, mask
+        
+class _WH_RGB_HSI_Dataset_Wrapper(Dataset):
+    '''
+    Description: Custom Dataset Wrapper for Pytorch. This comes into effect because the test dataset should not undergo data augmentation. 
+    '''
+    def __init__(self, dataset, transform):
+        self.dataset = dataset
+        self.transform = transform
+
+    def __len__(self):
+        return len(self.dataset)
     
-    softmax = nn.Softmax(dim=1)
-    prob_pred_mask = softmax(model(img.float())).to('cpu')
-    pred_mask = torch.argmax(softmax(model(img.float())),axis=1).to('cpu')
-
-    #loop over all images inside the batch
-    for j in range(img.shape[0]):
+    def __getitem__(self, idx):
         
-        #list for storing the masks
-        prob_masks=[]
+        rgb_image, hsi_image, mask = self.dataset[idx]
         
-        #loop over all class masks in probability mask
-        for c in range(len(NUM_UNIQUE_VALUES_LONG)):
-            prob_masks.append(prob_pred_mask[j,c,:,:])
         
-        # Initialize an empty overlay
-        overlay = np.zeros((height, width, 3))  
-        for i, prob_mask in enumerate(prob_masks):
+        transformed = self.transform(image=rgb_image, image1 = hsi_image, mask=mask)
+        rgb_image_trans = transformed["image"]
+        hsi_image_trans = transformed["image1"]
+        mask_trans = transformed["mask"]
+        
+        return rgb_image_trans, hsi_image_trans, mask_trans
 
-            color = np.array(plt.cm.colors.to_rgba(COLORS_LONG[i])[:3])  # Get color for class
-            overlay += np.dstack((color[0] * prob_mask.detach().numpy(), 
-                                  color[1] * prob_mask.detach().numpy(), 
-                                  color[2] * prob_mask.detach().numpy()))  # Add color with transparency
+#################################################
+################  Constants  ####################
+#################################################
 
-        # Clip overlay to ensure values are between 0 and 1
-        overlay = np.clip(overlay, 0, 1)
+#check if cuda is active
+print(torch.cuda.is_available())
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+_today=datetime.today().strftime('%Y-%m-%d')
+
+#color values for complete classes
+NUM_UNIQUE_VALUES_LONG = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+COLORS_LONG = ['black',          'white', 'green',  'red',  'cyan',          'blue',      'darkred',     'pink',     'navy', 'orange', ]
+CLASSES_LONG = ['background', 'chicken_front', 'chicken_back', 'Blood', 'Bones', 'SurfaceDefect', 'Discoloring', 'Scalding', 'Deformed', 'Fat/Skin']
+CLASSES_LONG_9 = ['background', 'chicken_front', 'chicken_back', 'Blood', 'Bones', 'SurfaceDefect', 'Discoloring', 'Scalding', 'Fat/Skin']
+TXT_COLORS_LONG=['\033[0mblack', '\033[94mwhite', '\033[32mgreen','\033[91mred', 
+                 '\033[96mcyan', '\033[94mblue', '\\033[31mdarkred',
+                 '\033[95mpink' ,'\033[34mnavy' , '\033[38;2;255;165;0morange']
+TXT_COLORS_LONG_COLOR_ONLY=['\033[0m', '\033[94m', '\033[32m', '\033[91m', '\033[96m', '\033[94m', '\033[31m', '\033[95m' ,'\033[34m' , '\033[38;2;255;165;0m']
+
+#color map, relevant when visualising the masks with colors
+cmap_long = ListedColormap(COLORS_LONG)
+BOUNDARIES_LONG = [-0.5, 0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5]
+norm_long = BoundaryNorm(BOUNDARIES_LONG, len(COLORS_LONG))
+
+#other constants
+N_CLASSES = 10
+HSI_HEIGHT = 672
+HSI_WIDTH = 320
+
+##########################################################
+################  Training Functions  ####################
+##########################################################
+
+class DiceLoss(nn.Module):
+    '''
+    Description: Custom Dice Loss function for model training.
+    '''
+    def __init__(self, n_classes):
+        super(DiceLoss, self).__init__()
+        self.n_classes = n_classes
+
+
+    def _one_hot_encoder(self, input_tensor):
+        '''
+        Description: Custom One hot encoding function, because the regular one hot function in this case throws a weird error
+        '''
+        tensor_list = []
+        for i in range(self.n_classes):
+            temp_prob = input_tensor == i  # * torch.ones_like(input_tensor)
+            tensor_list.append(temp_prob.unsqueeze(1))
+        output_tensor = torch.cat(tensor_list, dim=1)
+        return output_tensor.float()
+
+
+    def _dice_loss(self, score, target):
+        '''
+        Description: The actual dice loss function. Modeled after dice score from: https://en.wikipedia.org/wiki/Dice-Sørensen_coefficient
+        '''
+        target = target.float()
+        smooth = 1e-5
+        intersect = torch.sum(score * target)
+        y_sum = torch.sum(target * target)
+        z_sum = torch.sum(score * score)
+        loss = (2 * intersect + smooth) / (z_sum + y_sum + smooth)
+
+        # loss has to be negative, since its being minimized
+        loss = 1 - loss
+        return loss
+
+
+    def forward(self, inputs, target, weight=None, softmax=True):
+        '''
+        Description: Forward function where weighted dice loss for multiclassification is calculated. 
+        '''
+        if softmax:
+            inputs = torch.softmax(inputs, dim=1)
+        target = self._one_hot_encoder(target)
+        if weight is None:
+            weight = [1] * self.n_classes
+        
+        #check if input size is equal target size
+        assert inputs.size() == target.size(), 'predict {} & target {} shape do not match'.format(inputs.size(), target.size())
+        class_wise_dice = []
+        loss = 0.0
+
+        #loops through all classes
+        for i in range(0, self.n_classes):
+
+            #calculate dice for each class
+            dice = self._dice_loss(inputs[:, i], target[:, i])
+
+            #independently track dice
+            class_wise_dice.append(1.0 - dice.item())
+
+            #add loss for all classes
+            loss += dice * weight[i]
+        return loss / self.n_classes
+
+###################################################################################
+
+        ###############################################################
+        ############### sensor fusion model training ##################
+        ###############################################################
+
+###################################################################################
+
+# sensor fusion model training with two possible loss functions
+def sf_model_training_multiloss(model, train_loader, val_loader, num_epochs, ce_loss_fn, dice_loss_fn, optimizer, scaler, scheduler, 
+                            avg_train_loss_list, avg_val_loss_list, TRAIN_BATCH_SIZE, VAL_BATCH_SIZE,
+                             activate_scheduler=True, patience=15, model_name='', data_source='rgb', save_state = False):
+    '''
+    Description: Model Training for Sensor fusion with two loss functions. Needs a data source option since dataloader
+    for all models is the same.
+    - Early stop option, if patience is 0, early stop is deactivated
+    - Scheduler Option
+    - Save state option
+    Input: Pytorch Model, Train Loader, Validation Loader, Number of Epochs, Cross Entropy Loss, Dice Loss, Optimizer, Pytorch Scaler, 
+    Scheduler, List to track the average Train & Val Loss (for complete Visualisation of Training), Batch sizes, Scheduler Options,
+    Patience for Early Stop Option, Model Name for Save state, Data Source, Save State option
+    Output: Trained Model, List to track the average Train & Val Loss (for complete Visualisation of Training)
+    '''
+
+    _today=datetime.today().strftime('%Y-%m-%d')
+    print('Training beginning with following parameters:')
+    print(f'No. Epochs: {num_epochs}')
+
+    #this is used for early stopping, value should be pretty large
+    best_val_loss = 1000
+    
+    #training with Cross Entropy Loss
+    for epoch in range(num_epochs):
+        
+        print(f'Epoch: {epoch}')
+        train_batch_loss=0
+        val_batch_loss=0
+        train_batch_iou=0
+        val_batch_iou=0
+        
+        #####################################################
+        ############### training instance ###################
+        #####################################################
+        
+        #training loop
+        model.train()
+        train_loop = tqdm(enumerate(train_loader),total=len(train_loader))
+        for batch_idx, (rgb_img, hsi_img, mask) in train_loop:
+
+            if data_source == 'rgb':
+                rgb_img = rgb_img.to(DEVICE) #put data sources onto cuda device if available
+                mask = mask.to(DEVICE)
+                mask = mask.type(torch.long) #convert to correct data type for training
+
+                # forward pass
+                with torch.cuda.amp.autocast():
+                    predictions = model(rgb_img.float()) #prediction
+                    ce_loss = ce_loss_fn(predictions, mask)
+                    dice_loss = dice_loss_fn(predictions, mask)
+                    loss = ce_loss + dice_loss #add losses together
+
+            elif data_source == 'hsi':
+                hsi_img = hsi_img.to(DEVICE)
+                mask = mask.to(DEVICE)
+                mask = mask.type(torch.long)
+
+                # forward pass
+                with torch.cuda.amp.autocast():
+                    predictions = model(hsi_img)
+                    ce_loss = ce_loss_fn(predictions, mask)
+                    dice_loss = dice_loss_fn(predictions, mask)
+                    loss = ce_loss + dice_loss
             
-        fig , axs =  plt.subplots(1, 4, figsize=(24, 24))
+            elif data_source == 'sf':
+                rgb_img = rgb_img.to(DEVICE)
+                hsi_img = hsi_img.to(DEVICE)
+                mask = mask.to(DEVICE)
+                mask = mask.type(torch.long)
+            
+                # forward pass
+                with torch.cuda.amp.autocast():
+                    predictions = model(rgb_img.float(), hsi_img)
+                    ce_loss = ce_loss_fn(predictions, mask)
+                    dice_loss = dice_loss_fn(predictions, mask)
+                    loss = ce_loss + dice_loss
+                
+            # backward pass
+            optimizer.zero_grad()
+            scaler.scale(loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
     
-        print(f'Image No.{j}')
-        #convert into arrays for visualisation
-        single_img = np.asarray(img[j,:,:,:].to('cpu').permute(1,2,0))
-        single_mask = np.asarray(mask[j,:,:].to('cpu'))
-        single_pred = np.asarray(pred_mask[j,:,:].to('cpu'))
-
-        axs[0].set_title('Image')
-        axs[1].set_title('Ground Truth')
-        axs[2].set_title('Prediction')
-        axs[3].set_title('Prediction Probabilities')
-        axs[0].imshow(single_img)
-        axs[1].imshow(single_mask, cmap=cmap_long, norm=norm_long)
-        axs[2].imshow(single_pred, cmap=cmap_long, norm=norm_long)
-        axs[3].imshow(overlay)
-        
-    fig.show()
-        
-    return pred_mask
-
-def rgb_visualize_prediction_vs_ground_truth_single_images_overlay_postprocessed(img, truth_mask, pred_mask, processed_pred_mask, is_img_normalized=False):
-    '''
-    Description: Visualizes model results and post processing results and during visualisation overlays the mask on top of the image
-    Input: Image, Ground Truth Mask, Predicted Mask, Post Processed Mask
-    '''
-    fig , axs =  plt.subplots(2, 2, figsize=(16, 12))
-
-    axs[0, 0].set_title('Plain Image')
-    axs[0, 1].set_title('Image with Ground Truth')
-    axs[1, 0].set_title('Image with Prediction')
-    axs[1, 1].set_title('Image with Post Processing')
-
-    axs[0, 0].imshow(img)
-    axs[0, 1].imshow(img)
-    axs[1, 0].imshow(img)
-    axs[1, 1].imshow(img)
-
-    axs[0, 1].imshow(truth_mask, cmap=cmap_long, norm=norm_long, alpha=0.3)
-    axs[1, 0].imshow(pred_mask, cmap=cmap_long, norm=norm_long, alpha=0.3)
-    axs[1, 1].imshow(processed_pred_mask, cmap=cmap_long, norm=norm_long, alpha=0.3)
-
-    axs[0, 0].axis('off')
-    axs[0, 1].axis('off')
-    axs[1, 0].axis('off')
-    axs[1, 1].axis('off')
-
-    plt.show()
-
-def visualize_prediction_vs_ground_truth_overlay_all_sources(rgb_img, hsi_img, truth_mask, pred_mask, data_source):
-    '''
-    Description: Visualizes model results and during visualisation overlays the mask on top of the image. For all data sources
-    Input: RGB Image, HSI Image, Ground Truth Mask, Predicted Mask, Data Source
-    '''
-    if data_source == 'rgb':
-
-        fig , axs =  plt.subplots(1, 3, figsize=(18, 12))
-
-        axs[0].set_title('Plain Image RGB')
-        axs[1].set_title('Image with Ground Truth')
-        axs[2].set_title('Image with Prediction')
-
-        axs[0].imshow(np.asarray(rgb_img.to('cpu').permute(1,2,0)))
-        axs[1].imshow(np.asarray(rgb_img.to('cpu').permute(1,2,0)))
-        axs[2].imshow(np.asarray(rgb_img.to('cpu').permute(1,2,0)))
-
-        axs[1].imshow(np.asarray(truth_mask.to('cpu')), cmap=cmap_long, norm=norm_long, alpha=0.3)
-        axs[2].imshow(np.asarray(pred_mask.to('cpu')), cmap=cmap_long, norm=norm_long, alpha=0.3)
-
-    elif data_source == 'hsi':
-
-        fig , axs =  plt.subplots(1, 4, figsize=(18, 12))
-
-        axs[0].set_title('Plain Image HSI')
-        axs[1].set_title('Image with Ground Truth')
-        axs[2].set_title('Image with Prediction')
-        axs[3].set_title('RGB Reference')
-
-        axs[0].imshow(np.asarray(hsi_img.to('cpu').permute(1,2,0))[:,:,0])
-        axs[1].imshow(np.asarray(rgb_img.to('cpu').permute(1,2,0)))
-        axs[2].imshow(np.asarray(rgb_img.to('cpu').permute(1,2,0)))
-        axs[3].imshow(np.asarray(rgb_img.to('cpu').permute(1,2,0)))
-
-        axs[1].imshow(np.asarray(truth_mask.to('cpu')), cmap=cmap_long, norm=norm_long, alpha=0.3)
-        axs[2].imshow(np.asarray(pred_mask.to('cpu')), cmap=cmap_long, norm=norm_long, alpha=0.3)
-
-    elif data_source == 'sf':
-
-        fig , axs =  plt.subplots(1, 4, figsize=(18, 12))
-
-        axs[0].set_title('Plain Image RGB')
-        axs[1].set_title('Plain Image HSI')
-        axs[2].set_title('Image with Ground Truth')
-        axs[3].set_title('Image with Prediction')
-
-        axs[0].imshow(np.asarray(rgb_img.to('cpu').permute(1,2,0)))
-        axs[1].imshow(np.asarray(hsi_img.to('cpu').permute(1,2,0))[:,:,0])
-        axs[2].imshow(np.asarray(rgb_img.to('cpu').permute(1,2,0)))
-        axs[3].imshow(np.asarray(rgb_img.to('cpu').permute(1,2,0)))
-
-        axs[2].imshow(np.asarray(truth_mask.to('cpu')), cmap=cmap_long, norm=norm_long, alpha=0.3)
-        axs[3].imshow(np.asarray(pred_mask.to('cpu')), cmap=cmap_long, norm=norm_long, alpha=0.3)
-
-    plt.show()
-
-def is_ground_truth_empty(truth_mask, N_CLASS=N_CLASSES):
-    '''
-    Description: Checks if the ground truth mask is empty.
-    Input: Truth Mask, Number of Classes
-    '''
-    gt_array=[]
-
-    one_hot_truth_masks=F.one_hot(truth_mask.to(torch.int64), num_classes=N_CLASS).to(DEVICE)
-
-    for i in range(N_CLASS):
-        if one_hot_truth_masks[:,:,i].eq(0).all():
-            gt_array.append(True)
-        else:
-            gt_array.append(False)
-
-    return gt_array
-
-def is_prediction_empty(pred_mask, N_CLASS=N_CLASSES):
-    '''
-    Description: Checks if the prediction truth mask is empty.
-    Input: Truth Mask, Number of Classes
-    '''
-    pred_array=[]
-
-    one_hot_pred_masks=F.one_hot(pred_mask.to(torch.int64), num_classes=N_CLASS).to(DEVICE)
-
-    for i in range(N_CLASS):
-        if one_hot_pred_masks[:,:,i].eq(0).all():
-            pred_array.append(True)
-        else:
-            pred_array.append(False)
-
-    return pred_array
-
-# confusion matrix
-def plot_confusion_matrix(gt_flat, pred_flat, label_array):
-    '''
-    Description: Plot the confusion matrix.
-    Input: Truth Mask, Number of Classes
-    '''
-    conf=ConfusionMatrixDisplay.from_predictions(gt_flat, pred_flat, display_labels=label_array)
-
-###############################################
-############### Evaluation ####################
-###############################################
-
-
-
-def capture_model_metrics_pixelwise_and_confusion_matrix_sf(model, test_dataset_final, data_source, visualize = True, 
-                                                         confusion_matrix = True, norm_mode = 'pred', mask_shape=(320,320),
-                                                         smooth=1e-8):
-    '''
-    Description: Predicts Mask and Calculate the IoU and Dice Score of each image within a dataset for all data sources. Individually output 
-    those scores for each individual class.
-    Input: Model, Test Dataset, Data Source (String)
-    Ouput: Intersection List, Union List, Dice Num List, Dice Denom List
-    '''
-    test_ds_union = [0,0,0,0,0,0,0,0,0,0]
-    test_ds_intersection = [0,0,0,0,0,0,0,0,0,0]
-    test_ds_numerator = [0,0,0,0,0,0,0,0,0,0]
-    test_ds_denominator = [0,0,0,0,0,0,0,0,0,0]
-    img_dice = []
-    img_iou = []
-
-    ground_truth_all_images=np.zeros((mask_shape[0], mask_shape[1], len(test_dataset_final)))
-    prediction_all_images=np.zeros((mask_shape[0], mask_shape[1], len(test_dataset_final)))
+            # update tqdm loop
+            train_loop.set_postfix(loss=loss.item())
+            
+            train_batch_loss = train_batch_loss + loss.item()
     
-    with torch.no_grad():
+        #calculate average loss and add to the list for later visualisation
+        print(f'Average Train Batch Loss: {train_batch_loss/TRAIN_BATCH_SIZE:.4f}')
+        avg_train_loss_list.append(train_batch_loss/TRAIN_BATCH_SIZE)
+        
+        ####################################################
+        ############## validation instance #################
+        ####################################################
+        
+        #evaluation loop, so same thing without a backward pass
         model.eval()
+        val_loop = tqdm(enumerate(val_loader),total=len(val_loader))
+        for batch_idx, (rgb_img, hsi_img, mask) in val_loop:
+            with torch.no_grad():
+                if data_source == 'rgb':
+                    rgb_img = rgb_img.to(DEVICE)
+                    mask = mask.to(DEVICE)
+                    mask = mask.type(torch.long)
 
-        for n, batch in enumerate(test_dataset_final):
+                    with torch.cuda.amp.autocast():
+                        predictions = model(rgb_img.float())
+                        ce_loss = ce_loss_fn(predictions, mask)
+                        dice_loss = dice_loss_fn(predictions, mask)
+                        val_loss = ce_loss + dice_loss
 
-            rgb_img, hsi_img, mask = batch
+                elif data_source == 'hsi':
+                    hsi_img = hsi_img.to(DEVICE)
+                    mask = mask.to(DEVICE)
+                    mask = mask.type(torch.long)
 
-            # model prediction
-            if data_source=='rgb':
-                rgb_img = rgb_img.to(DEVICE).unsqueeze(0)
-                mask = mask.to(DEVICE)
+                    with torch.cuda.amp.autocast():
+                        predictions = model(hsi_img)
+                        ce_loss = ce_loss_fn(predictions, mask)
+                        dice_loss = dice_loss_fn(predictions, mask)
+                        val_loss = ce_loss + dice_loss
+            
+                elif data_source == 'sf':
+                    rgb_img = rgb_img.to(DEVICE)
+                    hsi_img = hsi_img.to(DEVICE)
+                    mask = mask.to(DEVICE)
+                    mask = mask.type(torch.long)
+            
+                    # forward
+                    with torch.cuda.amp.autocast():
+                        predictions = model(rgb_img.float(), hsi_img)
+                        ce_loss = ce_loss_fn(predictions, mask)
+                        dice_loss = dice_loss_fn(predictions, mask)
+                        val_loss = ce_loss + dice_loss
 
-                softmax = nn.Softmax(dim=1)
-
-                preds = torch.argmax(softmax(model(rgb_img.float())),axis=1).to('cpu').squeeze(0)
-
-            if data_source=='hsi':
-                hsi_img = hsi_img.to(DEVICE).unsqueeze(0)
-                mask = mask.to(DEVICE)
-
-                softmax = nn.Softmax(dim=1)
-
-                preds = torch.argmax(softmax(model(hsi_img.float())),axis=1).to('cpu').squeeze(0)
-
-            elif data_source=='sf':
-
-                rgb_img = rgb_img.to(DEVICE).unsqueeze(0)
-                hsi_img = hsi_img.to(DEVICE).unsqueeze(0)
-                mask = mask.to(DEVICE)
-
-                softmax = nn.Softmax(dim=1)
-
-                preds = torch.argmax(softmax(model(rgb_img.float(), hsi_img)),axis=1).to('cpu').squeeze(0)
-
-            # convert torch tensor to numpy array
-            prediction_all_images[:,:,n] = preds.numpy()
-            ground_truth_all_images[:,:,n] = mask.to('cpu').numpy()
-
-            #calculate dice and iou score
-            is_list, u_list=intersection_and_union_all_classes(mask, preds, SINGLE_PREDICTION=True)
-            n_list, d_list=dice_values_all_classes(mask, preds, SINGLE_PREDICTION=True)
-
-
-            if visualize == True:
-                visualize_prediction_vs_ground_truth_overlay_all_sources(rgb_img.squeeze(0), hsi_img.squeeze(0), mask, preds.squeeze(0), data_source)
-
-            #print the scores for individual classes of individual images
-            print('IOU')
-            for i in range(len(NUM_UNIQUE_VALUES_LONG)):
-                if is_ground_truth_empty(mask)[i] and is_prediction_empty(preds)[i]:
-                    print(f'{TXT_COLORS_LONG_COLOR_ONLY[i]} - {CLASSES_LONG[i]}: Empty')
-                else:
-                    print(f'{TXT_COLORS_LONG_COLOR_ONLY[i]} - {CLASSES_LONG[i]}: {is_list[i]/(u_list[i]+smooth):.4f}')
-
-                    #tracking class average of iou across all images
-                    test_ds_union[i] += u_list[i]
-                    test_ds_intersection[i] += is_list[i]
-                    
-            print(TXT_COLORS_LONG_COLOR_ONLY[0]+ 'x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x')
-
-            print('Dice')
-            for i in range(len(NUM_UNIQUE_VALUES_LONG)):
-                if is_ground_truth_empty(mask)[i] and is_prediction_empty(preds)[i]:
-                    print(f'{TXT_COLORS_LONG_COLOR_ONLY[i]} - {CLASSES_LONG[i]}: Empty')
-                else:
-                    print(f'{TXT_COLORS_LONG_COLOR_ONLY[i]} - {CLASSES_LONG[i]}: {n_list[i]/(d_list[i]+smooth):.4f}')
-
-                    #tracking class average of iou across all images
-                    test_ds_numerator[i] += n_list[i]
-                    test_ds_denominator[i] += d_list[i]
     
-            print(TXT_COLORS_LONG_COLOR_ONLY[0])
+            # update tqdm loop
+            val_loop.set_postfix(val_loss=val_loss.item())
+            
+            val_batch_loss = val_batch_loss + val_loss.item()
+
+        #calculate average loss and add to the list for later visualisation
+        avg_val_loss = val_batch_loss / len(val_loader)
+        print(f'Average Validation Batch Loss: {val_batch_loss/VAL_BATCH_SIZE:.4f}')        
+        avg_val_loss_list.append(val_batch_loss/VAL_BATCH_SIZE)
+        
+        #######################################################
+        ############### adjust learning rate ##################
+        #######################################################
+        
+        if activate_scheduler:
+
+            #adjust scheduler if one is available
+            before_lr = optimizer.param_groups[0]["lr"]
+            scheduler.step()
+            after_lr = optimizer.param_groups[0]["lr"]
+            print(f"Epoch {epoch}: Adam lr {before_lr:.4f} -> {after_lr:.4f}")
+        
+        ###################################################################################################################
+        ############## visualize training and validation results and also save model after 50 epochs ######################
+        ###################################################################################################################
+            
+        #visualize training loss every 10 epochs
+        if ((epoch%10==0) and (epoch>0) or (epoch==num_epochs)):
+            
+            plot_range=range(epoch)
+            
+            fig, axs = plt.subplots(figsize=(9,6))
+            
+            ###
+            # Loss
+            ###
+            
+            axs.plot(range(len(avg_train_loss_list)), avg_train_loss_list, marker='o', linestyle='-', label='Training Loss', color='blue')
+            
+            #create twin axis
+            ax2 = axs.twinx()
+            ax2.plot(range(len(avg_val_loss_list)), avg_val_loss_list, marker='o', linestyle='-', label='Validation Loss', color='orange')
+            
+            # Add labels and title
+            axs.set_xlabel('Epochs')
+            axs.set_ylabel('Training Loss', color='blue')
+            ax2.set_ylabel('Validation Loss', color='orange')
+            axs.set_title('Training vs Validation Loss')
+            
+            # Show legend for both axes
+            axs.legend(loc='upper left')
+            ax2.legend(loc='upper right')
     
-            # for defects only iou and dice for the entire (test) dataset, store those values into list elements
-
-            intersection_array = np.array(is_list)
-            union_array = np.array(u_list)
-            numinator_array = np.array(n_list)
-            denominator_array = np.array(d_list)
-
-            iou_image_pixelwise = intersection_array[3:].sum()/(union_array[3:].sum()+smooth)
-            dice_image_pixelwise = numinator_array[3:].sum()/(denominator_array[3:].sum()+smooth)
-
-            print('Defects Only')
-            print(TXT_COLORS_LONG_COLOR_ONLY[0]+f'Image Average IoU: {iou_image_pixelwise:.4f}')
-            print(TXT_COLORS_LONG_COLOR_ONLY[0]+f'Image Average Dice: {dice_image_pixelwise:.4f}')
-
-            img_dice.append(dice_image_pixelwise)
-            img_iou.append(iou_image_pixelwise)
-
-            # frees up memeory every 10th image
-            if n%10:
-                torch.cuda.empty_cache()
-
-        #print confusion matrix
-        if confusion_matrix:
-            gt_flat = ground_truth_all_images.flatten()
-            prediction_flat = prediction_all_images.flatten()
-
-            prediction_flat[0] = 8
-
-            print(gt_flat.shape)
-            print(prediction_flat.shape)
-            print(CLASSES_LONG_9)
-
-            fig, ax = plt.subplots(figsize=(10, 8))
-
-            conf=ConfusionMatrixDisplay.from_predictions(gt_flat, prediction_flat, display_labels=CLASSES_LONG, normalize=norm_mode, 
-                                                         ax=ax, xticks_rotation='vertical')
-
+            plt.grid(True)
             plt.show()
+            
+        ######################################################
+        ################# early stopping #####################
+        ######################################################
+        if patience > 0 and epoch>int(1/3*num_epochs):
+            if avg_val_loss < best_val_loss:
+                best_val_loss = avg_val_loss
+                patience_counter = 0
+                # Save the best model
+                torch.save({
+                    'epoch': epoch,
+                    'model_state_dict': model.state_dict(),
+                    'optimizer_state_dict': optimizer.state_dict(),
+                    'loss': loss,
+                    'scaler_state_dict': scaler.state_dict()
+                }, f'best_model_{_today}_{model_name}.pt')
+            else:
+                patience_counter += 1
+                if patience_counter >= patience:
+                    print(f'Early stopping at epoch {epoch}')
+                    break
 
-            return test_ds_union, test_ds_intersection, test_ds_numerator, test_ds_denominator, img_iou, img_dice
-        
-def calculate_model_metrics(test_ds_intersection, 
-                            test_ds_union, 
-                            test_ds_numerator, 
-                            test_ds_denominator,
-                            defects_only, file_name=''):
-    '''
-    Description: Outputs the entire Dataset IoU and Dice Score for each class individually
-    Input: Intersection List, Union List, Dice Num List, Dice Denom List
-    '''
-    iou_dict = {}
-    dice_dict = {}
-    other_dict = {}
+        #save model every at epoch 50 and 75 and at the end of the training
+        if (epoch==50 and save_state == True) or (epoch==75 and save_state == True) or epoch==(num_epochs-1):
+            # Save all the elements to a file
+            torch.save({
+                'epoch': epoch,
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                'loss': loss,
+                'scaler_state_dict': scaler.state_dict()
+            }, f'model_e{epoch}_{_today}_{model_name}.pt')
+            
+    return model, loss, avg_train_loss_list, avg_val_loss_list
 
+# sensor fusion model training with one possible loss functions (same as above, only used for the baseline model)
+def sf_model_training(model, train_loader, val_loader, num_epochs, loss_fn, optimizer, scaler, scheduler, 
+                            avg_train_loss_list, avg_val_loss_list, TRAIN_BATCH_SIZE, VAL_BATCH_SIZE,
+                             activate_scheduler=True, patience=15, model_name='', data_source='rgb', save_state = False):
 
-    print('Average IoU (Defects Only) over entire Test Dataset: '+f'{np.sum(np.array(test_ds_intersection[3:]))/(np.sum(np.array(test_ds_union)[3:])+1e-06):.4f}')
-    print('Average Dice Score (Defects Only) over entire Test Dataset: '+f'{np.sum(np.array(test_ds_numerator[3:]))/(np.sum(np.array(test_ds_denominator[3:]))+1e-06):.4f}')
-    print('Average IoU (Entire Image) over entire Test Dataset: '+f'{np.sum(np.array(test_ds_intersection))/(np.sum(np.array(test_ds_union))+1e-06):.4f}')
-    print('Average Dice Score (Entire Image) over entire Test Dataset: '+f'{np.sum(np.array(test_ds_numerator))/(np.sum(np.array(test_ds_denominator))+1e-06):.4f}')
+    _today=datetime.today().strftime('%Y-%m-%d')
+    print('Training beginning with following parameters:')
+    print(f'No. Epochs: {num_epochs}')
 
-    other_dict['Avg_IoU_defects_only'] = np.sum(np.array(test_ds_intersection[3:]))/(np.sum(np.array(test_ds_union)[3:])+1e-06)
-    other_dict['Avg_Dice_defects_only'] = np.sum(np.array(test_ds_numerator[3:]))/(np.sum(np.array(test_ds_denominator[3:]))+1e-06)
-    other_dict['Avg_IoU_entire_img'] = np.sum(np.array(test_ds_intersection))/(np.sum(np.array(test_ds_union))+1e-06)
-    other_dict['Avg_Dice_entire_img'] = np.sum(np.array(test_ds_numerator))/(np.sum(np.array(test_ds_denominator))+1e-06)
-
-    print('--Class Average IoU--')
-    for i in range(len(CLASSES_LONG)):
-
-        iou_value = test_ds_intersection[i] / (test_ds_union[i] + 1e-06)
-        print(f'{CLASSES_LONG[i]}: {test_ds_intersection[i]/(test_ds_union[i]+1e-06):.4f}')
-        iou_dict[CLASSES_LONG[i]] = iou_value
-
-    print('--Class Average Dice Score--')
-    for i in range(len(CLASSES_LONG)):
-
-        dice_value = test_ds_numerator[i] / (test_ds_denominator[i] + 1e-06)
-        print(f'{CLASSES_LONG[i]}: {test_ds_numerator[i]/(test_ds_denominator[i]+1e-06):.4f}')
-        dice_dict[CLASSES_LONG[i]] = dice_value
-
-    with open(f'model_metrics_{file_name}.txt', 'w') as file:
-
-        file.write('All:\n')
-        for key, value in other_dict.items():
-            file.write(f'{key}: {value:.4f}\n')
-
-        file.write('\nClass Average IoU:\n')
-        for key, value in iou_dict.items():
-            file.write(f'{key}: {value:.4f}\n')
-
-        file.write('\nClass Average Dice Score:\n')
-        for key, value in dice_dict.items():
-            file.write(f'{key}: {value:.4f}\n')
-
-
-def intersection_and_union_all_classes(truth_mask, pred_mask, N_CLASS=N_CLASSES, SINGLE_PREDICTION=False):
-    '''
-    Description: Calculates the Intersection AND union of individual classes within a ground truth mask and a predicted mask.
-    IoU is calculated from these results.
-    Input: Truth Mask, Predicted Mask, Number of Classes
-    '''
-    intersection_list=[]
-    union_list=[]
+    #this is used for early stopping, value should be pretty large
+    best_val_loss = 1000
     
-    one_hot_pred_masks=F.one_hot(pred_mask.to(torch.int64), num_classes=N_CLASS).to(DEVICE)
-    one_hot_truth_masks=F.one_hot(truth_mask.to(torch.int64), num_classes=N_CLASS).to(DEVICE)
+    #training with Cross Entropy Loss
+    for epoch in range(num_epochs):
+        
+        print(f'Epoch: {epoch}')
+        train_batch_loss=0
+        val_batch_loss=0
+        train_batch_iou=0
+        val_batch_iou=0
+        
+        #####################################################
+        ############### training instance ###################
+        #####################################################
+        
+        model.train()
+        train_loop = tqdm(enumerate(train_loader),total=len(train_loader))
+        for batch_idx, (rgb_img, hsi_img, mask) in train_loop:
+
+            if data_source == 'rgb':
+                rgb_img = rgb_img.to(DEVICE)
+                mask = mask.to(DEVICE)
+                mask = mask.type(torch.long)
+
+                with torch.cuda.amp.autocast():
+                    predictions = model(rgb_img.float())
+                    loss = loss_fn(predictions, mask)
+
+            elif data_source == 'hsi':
+                hsi_img = hsi_img.to(DEVICE)
+                mask = mask.to(DEVICE)
+                mask = mask.type(torch.long)
+
+                with torch.cuda.amp.autocast():
+                    predictions = model(hsi_img)
+                    loss = loss_fn(predictions, mask)
+            
+            elif data_source == 'sf':
+                rgb_img = rgb_img.to(DEVICE)
+                hsi_img = hsi_img.to(DEVICE)
+                mask = mask.to(DEVICE)
+                mask = mask.type(torch.long)
+            
+                # forward
+                with torch.cuda.amp.autocast():
+                    predictions = model(rgb_img.float(), hsi_img)
+                    loss = loss_fn(predictions, mask)
+                
+            # backward
+            optimizer.zero_grad()
+            scaler.scale(loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
     
-    for i in range(N_CLASS):
-        
-        if SINGLE_PREDICTION:
-            union=one_hot_pred_masks.squeeze(0)[:,:,i]|one_hot_truth_masks[:,:,i]
-            intersection=one_hot_pred_masks.squeeze(0)[:,:,i]&one_hot_truth_masks[:,:,i]
-        else:
-            union=one_hot_pred_masks[:,:,i]|one_hot_truth_masks[:,:,i]
-            intersection=one_hot_pred_masks[:,:,i]&one_hot_truth_masks[:,:,i]
-        
-        intersection_list.append(intersection.sum().item())
-        union_list.append(union.sum().item())
-             
-    return intersection_list, union_list
-
-def dice_values_all_classes(truth_mask, pred_mask, N_CLASS=N_CLASSES, print_dice=False, SINGLE_PREDICTION=False):
-    '''
-    Description: Calculates the Numinator AND Denominator of individual classes within a ground truth mask and a predicted mask of Dice Score.
-    Dice Score is calculated from these results.
-    Input: Truth Mask, Predicted Mask, Number of Classes
-    '''
-    numinator_list=[]
-    denominator_list=[]
+            # update tqdm loop
+            train_loop.set_postfix(loss=loss.item())
+            
+            train_batch_loss = train_batch_loss + loss.item()
     
-    one_hot_pred_masks=F.one_hot(pred_mask.to(torch.int64), num_classes=N_CLASS).to(DEVICE)
-    one_hot_truth_masks=F.one_hot(truth_mask.to(torch.int64), num_classes=N_CLASS).to(DEVICE)
+        #calculate average loss
+        print(f'Average Train Batch Loss: {train_batch_loss/TRAIN_BATCH_SIZE:.4f}')
+        avg_train_loss_list.append(train_batch_loss/TRAIN_BATCH_SIZE)
+        
+        ####################################################
+        ############## validation instance #################
+        ####################################################
+        
+        model.eval()
+        val_loop = tqdm(enumerate(val_loader),total=len(val_loader))
+        for batch_idx, (rgb_img, hsi_img, mask) in val_loop:
+            with torch.no_grad():
+                if data_source == 'rgb':
+                    rgb_img = rgb_img.to(DEVICE)
+                    mask = mask.to(DEVICE)
+                    mask = mask.type(torch.long)
+
+                    with torch.cuda.amp.autocast():
+                        predictions = model(rgb_img.float())
+                        val_loss = loss_fn(predictions, mask)
+
+                elif data_source == 'hsi':
+                    hsi_img = hsi_img.to(DEVICE)
+                    mask = mask.to(DEVICE)
+                    mask = mask.type(torch.long)
+
+                    with torch.cuda.amp.autocast():
+                        predictions = model(hsi_img)
+                        val_loss = loss_fn(predictions, mask)
+            
+                elif data_source == 'sf':
+                    rgb_img = rgb_img.to(DEVICE)
+                    hsi_img = hsi_img.to(DEVICE)
+                    mask = mask.to(DEVICE)
+                    mask = mask.type(torch.long)
+            
+                    # forward
+                    with torch.cuda.amp.autocast():
+                        predictions = model(rgb_img.float(), hsi_img)
+                        val_loss = loss_fn(predictions, mask)
+
     
-    for i in range(N_CLASS):
+            # update tqdm loop
+            val_loop.set_postfix(val_loss=val_loss.item())
+            
+            val_batch_loss = val_batch_loss + val_loss.item()
+
+        avg_val_loss = val_batch_loss / len(val_loader)
+        print(f'Average Validation Batch Loss: {val_batch_loss/VAL_BATCH_SIZE:.4f}')        
+        avg_val_loss_list.append(val_batch_loss/VAL_BATCH_SIZE)
         
-        if SINGLE_PREDICTION:
-            intersection=one_hot_pred_masks.squeeze(0)[:,:,i]&one_hot_truth_masks[:,:,i]
-            dice_numinator=2*intersection.sum().item()
-            dice_denominator=one_hot_pred_masks.squeeze(0)[:,:,i].sum().item()+one_hot_truth_masks[:,:,i].sum().item()
-        else:
-            intersection=one_hot_pred_masks[:,:,i]&one_hot_truth_masks[:,:,i]
-            dice_numinator=2*intersection.sum().item()
-            dice_denominator=one_hot_pred_masks[:,:,i].sum().item()+one_hot_truth_masks[:,:,i].sum().item()
+        #######################################################
+        ############### adjust learning rate ##################
+        #######################################################
         
-        numinator_list.append(dice_numinator)
-        denominator_list.append(dice_denominator)
-
-    return numinator_list, denominator_list
-
-def calculate_model_inference_time(model, batch, data_source):
-    '''
-    Description: Calculates a model's inference time averaged over a data loader batch. 
-    Input: Model, Batch, Data Source
-    '''
-    model = model.to(DEVICE)
-
-    # Here implement division by batch size
-    rgb_img, hsi_img, mask = next(iter(batch))
-    rgb_img = rgb_img.to(DEVICE)
-    hsi_img = hsi_img.to(DEVICE)
-    print(rgb_img.shape)
-    model.eval()
-    with torch.no_grad():
-        start_time = time.time()
-
-        if data_source == 'sf':
-            _ = model(rgb_img.float(), hsi_img)
-
-        elif data_source == 'hsi':
-            _ = model(hsi_img)
-
-        elif data_source == 'rgb':
-            _ = model(rgb_img.float())
-
-        end_time = time.time()
+        if activate_scheduler:
+            before_lr = optimizer.param_groups[0]["lr"]
+            scheduler.step()
+            after_lr = optimizer.param_groups[0]["lr"]
+            print(f"Epoch {epoch}: Adam lr {before_lr:.4f} -> {after_lr:.4f}")
         
-    inference_time = end_time - start_time
-    print(f' Batch Inference Time: {inference_time}s')
-    #print(f' Batch Length: {len(batch)}')
-    print(f' Single Image Inference Time: {inference_time/rgb_img.shape[0]}s')
-
-    return inference_time/rgb_img.shape[0]
+        ###################################################################################################################
+        ############## visualize training and validation results and also save model after 50 epochs ######################
+        ###################################################################################################################
+            
+        if ((epoch%10==0) and (epoch>0) or (epoch==num_epochs)):
+            
+            plot_range=range(epoch)
+            
+            fig, axs = plt.subplots(figsize=(9,6))
+            
+            ###
+            # Loss
+            ###
+            
+            axs.plot(range(len(avg_train_loss_list)), avg_train_loss_list, marker='o', linestyle='-', label='Training Loss', color='blue')
+            
+            #create twin axis
+            ax2 = axs.twinx()
+            ax2.plot(range(len(avg_val_loss_list)), avg_val_loss_list, marker='o', linestyle='-', label='Validation Loss', color='orange')
+            
+            # Add labels and title
+            axs.set_xlabel('Epochs')
+            axs.set_ylabel('Training Loss', color='blue')
+            ax2.set_ylabel('Validation Loss', color='orange')
+            axs.set_title('Training vs Validation Loss')
+            
+            # Show legend for both axes
+            axs.legend(loc='upper left')
+            ax2.legend(loc='upper right')
     
+            plt.grid(True)
+            plt.show()
+            
+        ######################################################
+        ################# early stopping #####################
+        ######################################################
+        if patience > 0 and epoch>int(1/3*num_epochs):
+            if avg_val_loss < best_val_loss:
+                best_val_loss = avg_val_loss
+                patience_counter = 0
+                # Save the best model
+                torch.save({
+                    'epoch': epoch,
+                    'model_state_dict': model.state_dict(),
+                    'optimizer_state_dict': optimizer.state_dict(),
+                    'loss': loss,
+                    'scaler_state_dict': scaler.state_dict()
+                }, f'best_model_{_today}_{model_name}.pt')
+            else:
+                patience_counter += 1
+                if patience_counter >= patience:
+                    print(f'Early stopping at epoch {epoch}')
+                    break
+                
+        if (epoch==50 and save_state == True) or (epoch==75 and save_state == True) or epoch==(num_epochs-1):
+            # Save all the elements to a file
+            torch.save({
+                'epoch': epoch,
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                'loss': loss,
+                'scaler_state_dict': scaler.state_dict()
+            }, f'model_e{epoch}_{_today}_{model_name}.pt')
+            
+    return model, loss, avg_train_loss_list, avg_val_loss_list
+
+
+def load_model(model_type, optimizer, scaler, model_path):
+    '''
+    Description: Load Model (from .pt file). Requires a predefined optimizer and scaler.
+    Input: Model type, Optimizer, Scaler and Model path
+    Output: Loaded Model
+    '''
+    model = model_type.to(DEVICE)
+    checkpoint = torch.load(model_path, map_location=torch.device(DEVICE))
+    model.load_state_dict(checkpoint['model_state_dict'])
+    optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+    epoch = checkpoint['epoch']
+    loss = checkpoint['loss']
+    scaler.load_state_dict(checkpoint['scaler_state_dict'])
+
+    return model
+
+#makes training etc. deterministic
+def seed_everything(seed=1234):
+    '''
+    Description: Random seed option to make training and dataloader split etc. deterministic.
+    Input: Seed (Int)
+    '''
+    random.seed(seed)
+    os.environ['PYTHONHASHSEED'] = str(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.backends.cudnn.deterministic = True
+
