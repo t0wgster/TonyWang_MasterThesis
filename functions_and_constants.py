@@ -110,6 +110,10 @@ additional_targets={'image1':'image'}
 
 #replace mask values with smaller numbers
 def replace_np_values(np_array, defects_only=False):
+    ''' Description: converts mask values of defect class (0,1,2,4,8,16 etc.) into more reasonable numbers (0,1,2,3,4 etc.)
+        Input: Segmentation Mask (Numpy Array), Bool
+        Output: Segmentation Mask (Numpy Array)
+        '''
 
     value_to_replace = -1
     new_value = 0
@@ -170,6 +174,10 @@ def replace_np_values(np_array, defects_only=False):
 
 # finds out if image contains any defects
 def img_contains_defects(mask):
+    ''' Description: Checks if the mask contains any defects (2 - 9). This is used to reshuffle the randomized data augmentation when no defects are present
+        Input: Segmentation Mask (Torch Tensor)
+        Output: Bool
+        '''
     if (torch.any(mask == 2) or torch.any(mask == 3) or torch.any(mask == 4) or torch.any(mask == 5) or torch.any(mask == 6) or torch.any(mask == 7) or torch.any(mask == 9)):
         return True
     else:
