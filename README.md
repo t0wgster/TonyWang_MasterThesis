@@ -11,4 +11,5 @@ This repository contains all the program code used in the training, testing and 
 
 ## Installation
 Run the following lines (in Jupyter Notebook):
+```python
 !git clone https://github.com/t0wgster/thesis_constants.git
