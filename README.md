@@ -8,3 +8,7 @@ This repository contains all the program code used in the training, testing and 
 - 3x RGB Standalone Models and 1x HSI Standalone Model
 - 1x Data-Level and 1x Feature-Level Sensor Fusion Model
 - 3 Post Processing Techniques for Segmentation Masks
+
+## Installation
+Run the following lines (in Jupyter Notebook):
+!git clone https://github.com/t0wgster/thesis_constants.git
