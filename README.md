@@ -13,6 +13,6 @@ This repository contains all the program code used in the training, testing and 
 Run the following lines (in Jupyter Notebook):
 ```python
 !git clone https://github.com/t0wgster/thesis_constants.git
-
+```
 ## Testing
 With the included Jupyter Notebook, the code can be tested.
