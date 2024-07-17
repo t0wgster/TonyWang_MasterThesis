@@ -10,9 +10,16 @@ This repository contains all the program code used in the training, testing and 
 - 3 Post Processing Techniques for Segmentation Masks
 
 ## Installation
-Run the following lines (in Jupyter Notebook):
+Run the following lines:
 ```python
-!git clone https://github.com/t0wgster/thesis_constants.git
+git clone https://github.com/t0wgster/TonyWang_MasterThesis.git
+pip install -r requirements.txt
 ```
+
+Optional  for CRF based post processing:
+```python
+pip install git+https://github.com/lucasb-eyer/pydensecrf.git
+```
+
 ## Testing
 With the included Jupyter Notebook, the code can be tested.
