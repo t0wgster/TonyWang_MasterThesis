@@ -21,5 +21,11 @@ Optional  for CRF based post processing:
 pip install git+https://github.com/lucasb-eyer/pydensecrf.git
 ```
 
+## Functions
+- Dataset & Dataloader
+- Training
+- Evaluation and Visualisation
+- Post Processing
+
 ## Testing
 With the included Jupyter Notebook, the code can be tested.
