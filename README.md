@@ -28,4 +28,7 @@ pip install git+https://github.com/lucasb-eyer/pydensecrf.git
 - Post Processing
 
 ## Testing
-With the included Jupyter Notebook, the code can be tested.
+With the following Zip File, a trained model for RGB and Sensor Fusion for an image pair can be tested:
+https://drive.google.com/file/d/1YAkhs3EWalyyXLv3ajtifTW8VNx0J4LX/view?usp=sharing
+
+
