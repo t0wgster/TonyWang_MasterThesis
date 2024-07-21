@@ -29,6 +29,6 @@ pip install git+https://github.com/lucasb-eyer/pydensecrf.git
 
 ## Testing
 With the following Zip File, a trained model for RGB and Sensor Fusion for an image pair can be tested:
-https://drive.google.com/file/d/1YAkhs3EWalyyXLv3ajtifTW8VNx0J4LX/view?usp=sharing
+https://drive.google.com/file/d/1UPik9_YIMs3fvkkJN5kElUP8EHPxT2Ja/view?usp=sharing
 
 
